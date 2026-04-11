@@ -1,0 +1,12 @@
+{
+    "version": "1.0",
+    "defaultSchema": "sqlite",
+    "schemas": [
+        {
+            "type": "jdbc",
+            "name": "sqlite",
+            "jdbcDriver": "org.sqlite.JDBC",
+            "jdbcUrl": "jdbc:sqlite:PLACEHOLDER"
+        }
+    ]
+}
