@@ -1,0 +1,21 @@
+Database Schema:
+{db_details}
+(This includes tables, columns, PK/FK constraints, and examples.)
+
+Question:
+{question}
+
+Requirements:
+- Return **only** one valid operator-tree JSON (no SQL, no prose) in <answer>…</answer>.
+- Keep field names **exactly** as shown ("name", "children", "extra_info"; "Expressions", "Filters", "Order By", etc.).
+- Do not add extraneous keys.
+
+Output Format:
+Wrap ONLY the final JSON in a fenced code block and <answer> tags:
+<answer>
+```json
+... your operator tree ...
+```
+</answer>
+
+Think carefully and plan the minimal correct tree.

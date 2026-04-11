@@ -1,0 +1,21 @@
+Task Overview:
+You are a relational algebra planner. Given a database schema and a natural language question, produce a correct **relational algebra operator tree** in a strict JSON/dict structure.
+
+Operator-Tree JSON Spec (EXACT keys, UPPERCASE operator names):
+- Each node is: {{"name": <OP>, "children": [<node>...], "extra_info": {{<k>: <v>, ...}}}}
+- Allowed operators (common cases):
+  • "SEQ_SCAN"        extra_info: {{"Table": "<table>", "Type": "Sequential Scan", "Filters": "<predicate or ''>"}}
+  • "FILTER"          extra_info: {{"Expressions": "<predicate>"}}
+  • "PROJECTION"      extra_info: {{"Expressions": ["Table.col", ...] OR "#[ref]"}}
+  • "ORDER_BY"        extra_info: {{"Order By": "<spec>"}}
+  • "LIMIT"           extra_info: {{"Expressions": "<k>" OR "" if no limit is requested}}
+  • "JOIN"            extra_info: {{"Join Type": "INNER" | "LEFT" | "NATURAL", "Condition": "<theta or '' for NATURAL>"}}
+  • "AGGREGATE"       extra_info: {{"Group By": ["Table.col", ...],
+                                   "Aggregates": ["alias := AGG(Table.col)", ...]}}
+  • "UNION" | "INTERSECT" | "EXCEPT" (MINUS)  extra_info: {{}}
+- Place **PROJECTION** as the final shaping operator to keep only requested attributes.
+- Qualify attributes as **Table.column** to disambiguate.
+- Use **JOIN** + conditions for PK–FK joins when needed.
+- Use **AGGREGATE** + **FILTER** for "most/least/top/bottom" logic (ORDER_BY and LIMIT only when explicitly asked).
+- If the question requires sorting, include **ORDER_BY**. Use "DESC" or "ASC" in the spec (e.g., "movie_popularity DESC").
+- Use CAST for numeric constants if types suggest it (e.g., CAST(1945 AS BIGINT)).

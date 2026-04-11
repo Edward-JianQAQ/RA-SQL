@@ -1,0 +1,44 @@
+Task Overview:
+You are a data science expert. Below, you are provided with a database schema and a natural language question. Your task is to:
+1. First, think through the problem by constructing a relational algebra operator tree
+2. Then, use that relational algebra as a guide to generate the equivalent SQL query
+
+Database Engine:
+SQLite
+
+Database Schema:
+{db_details}
+This schema describes the database's structure, including tables, columns, primary keys, foreign keys, and any relevant relationships or constraints.
+
+Question:
+{question}
+
+Instructions:
+- FIRST construct a relational algebra operator tree to solve the problem systematically
+- THEN translate that relational algebra into the corresponding SQL query
+- The relational algebra helps ensure you understand the logical steps before writing SQL
+- Make sure you only output the information that is asked in the question
+- The generated query should return all of the information asked in the question without any missing or extra information
+
+Relational Algebra Specification:
+Use this JSON format for the operator tree:
+- Each node: {{"name": <OP>, "children": [<node>...], "extra_info": {{<k>: <v>, ...}}}}
+- Common operators: SEQ_SCAN, FILTER, PROJECTION, JOIN, AGGREGATE, ORDER_BY, LIMIT, UNION, INTERSECT, EXCEPT
+- Qualify attributes as Table.column to disambiguate
+
+Output Format:
+<think>
+To solve this problem, I need to first construct a relational algebra operator tree that captures the logical operations needed.
+
+Here's the relational algebra operator tree:
+```json
+[Your relational algebra tree here]
+```
+
+Now I'll translate this relational algebra into an **equivalent** SQL query. I will use the logical operations in the it to guide SQL generation.
+</think>
+<answer>
+```sql
+-- Your SQL query based on the relational algebra above
+```
+</answer>

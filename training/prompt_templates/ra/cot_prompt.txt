@@ -1,0 +1,28 @@
+Database Schema:
+{db_details}
+(This includes tables, columns, PK/FK constraints, and examples.)
+
+Question:
+{question}
+
+Requirements:
+- Return the reasoning process and the final answer.
+- Put your reasoning steps in <think>…</think>.
+- Put a valid operator-tree JSON (no SQL, no prose) in <answer>…</answer>.
+- Keep field names **exactly** as shown ("name", "children", "extra_info"; "Expressions", "Filters", "Order By", etc.).
+- Do not add extraneous keys.
+
+# Output format 
+
+<think>
+... all the reasoning steps you took ...
+</think>
+<answer>
+```json
+ ... your operator tree ... 
+```
+</answer>
+
+- Consider the reasoning steps as the trace of how you would arrive at the provided relational algebra.
+
+Think carefully and plan the minimal correct tree.

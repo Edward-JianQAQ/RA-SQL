@@ -1,0 +1,61 @@
+Task Overview:
+You are a data science expert. Below, you are provided with a database schema and a natural language question. Your task is to:
+1. First, think through the problem step by step and construct a relational algebra operator tree
+2. Then, use that relational algebra as a guide to generate the equivalent SQL query
+
+Database Engine:
+SQLite
+
+Database Schema:
+{db_details}
+This schema describes the database's structure, including tables, columns, primary keys, foreign keys, and any relevant relationships or constraints.
+
+Question:
+{question}
+
+Instructions:
+- Think through the problem step by step
+- FIRST construct a complete relational algebra operator tree to solve the problem systematically
+- THEN translate that relational algebra into the corresponding SQL query
+- The relational algebra helps ensure you understand the logical steps before writing SQL
+- Make sure you only output the information that is asked in the question
+- The generated query should return all of the information asked in the question without any missing or extra information
+
+Relational Algebra Specification:
+Use this JSON format for the operator tree:
+- Each node: {{"name": <OP>, "children": [<node>...], "extra_info": {{<k>: <v>, ...}}}}
+- Common operators: SEQ_SCAN, FILTER, PROJECTION, JOIN, AGGREGATE, ORDER_BY, LIMIT, UNION, INTERSECT, EXCEPT
+- Qualify attributes as Table.column to disambiguate
+
+Output Format:
+<think>
+Let me break down this problem step by step to construct the relational algebra operator tree.
+
+First, I need to identify which tables contain the relevant information:
+[Your analysis of tables]
+
+Next, I'll determine the necessary joins:
+[Your join analysis]
+
+Then, I'll identify any filters needed:
+[Your filter analysis]
+
+Finally, I'll determine the projection:
+[Your projection analysis]
+
+Based on this analysis, here's the relational algebra operator tree:
+```json
+[Your relational algebra tree here]
+```
+
+Now I'll translate this relational algebra into SQL. The operator tree shows me that I need to:
+- [Describe main operations from the RA tree]
+- [Continue describing the translation]
+</think>
+<answer>
+```sql
+-- Your SQL query based on the relational algebra above
+```
+</answer>
+
+Take a deep breath and think step by step to find the correct relational algebra and SQL query.
