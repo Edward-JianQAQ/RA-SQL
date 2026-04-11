@@ -1,8 +1,7 @@
-# RA-SQL
+# RA-SQL: Relational Algebra as Deterministic Chain-of-Thoughtfor Natural Langauge to SQL
 
-Relational algebra as deterministic chain-of-thought for Text-to-SQL.
 
-RA-SQL compiles gold SQL queries into relational algebra (RA) operator trees via Apache Calcite and uses the serialized trees as structured chain-of-thought (CoT) supervision for training Text-to-SQL models. A single autoregressive model generates the RA tree in a `<think>` block, then produces the final SQL in an `<answer>` block.
+RA-SQL compiles gold SQL queries into relational algebra (RA) operator trees via Apache Calcite and uses the serialized trees as structured chain-of-thought (CoT) supervision for training NL2SQL models. A single autoregressive model generates the RA tree in a `<think>` block, then produces the final SQL in an `<answer>` block.
 
 ## Repository Structure
 
@@ -170,4 +169,4 @@ For Spider evaluation with foreign key support, add `--table_json_path ../data/s
 
 - SQL evaluation code adapted from the [Spider benchmark](https://github.com/taoyds/spider) and [OmniSQL](https://github.com/RUCKBReasoning/OmniSQL).
 - SQL-to-RA compilation built on [Apache Calcite](https://calcite.apache.org/).
-- Benchmarks: [Spider](https://yale-lily.github.io/spider), [BIRD](https://bird-bench.github.io/), [SynSQL](https://github.com/RUCKBReasoning/OmniSQL).
+- Benchmarks and Datasets: [Spider](https://yale-lily.github.io/spider), [BIRD](https://bird-bench.github.io/), [SynSQL](https://github.com/RUCKBReasoning/OmniSQL).
