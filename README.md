@@ -165,8 +165,12 @@ For Spider evaluation with foreign key support, add `--table_json_path ../data/s
 - Component F1 scores (select, where, group, order, keywords)
 - RA tree scores (for `ra` and `ra_sql` tasks)
 
+## Reproducing All Paper Experiments
+
+> **All scripts and processed data for reproducing every experiment in the paper are included.** Click below to expand the full instructions.
+
 <details>
-<summary><b>Reproducing All Paper Experiments (Section 7)</b></summary>
+<summary><b>Click to expand: full experiment reproduction guide (Sections 7.1–7.5)</b></summary>
 
 Scripts for all experiments reported in the paper are in `scripts/experiments/`. Each script includes comments mapping to the corresponding paper section.
 
