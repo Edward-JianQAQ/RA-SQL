@@ -1,50 +1,35 @@
 #!/usr/bin/env python
 """
-Evaluate a trained RA or SQL SFT model on a provided test split.
+Evaluate a trained RA or SQL chat-aligned SFT model on a provided test split.
 
-Example for RA evaluation (BIRD):
-python ra_eval.py \
-  --model_checkpoint_path=ra_sql_ckpts/ra_Qwen2.5-7B_sft_model \
+This version uses chat templates (similar to ra_train_chat.py) for evaluating
+Instruct models that were fine-tuned with chat formatting.
+
+Example for RA evaluation:
+python ra_eval_chat.py \
+  --model_checkpoint_path=ra_sql_ckpts/ra_sft_chat_model \
   --database_path=ra_data/bird/dev_20240627/dev_databases \
   --dataset_name=bird \
   --table_value_cache_path=ra_data/bird/dev_20240627/bird_dev_id2sampled_values.json \
   --table_info_cache_path=ra_data/bird/dev_20240627/bird_dev_id2db_info.json \
   --input_file=ra_data/bird/dev_20240627/dev_bird_ra_correct.json \
-  --tokenizer_name=Qwen/Qwen2.5-3B \
+  --tokenizer_name=Qwen/Qwen2.5-3B-Instruct \
   --detailed_log evaluation_detailed.txt \
   --verbose 0 \
   --save_errors \
-  --cot \
   --mode dev \
   --task_type ra
- 
-Example for RA evaluation (Spider): 
-python ra_eval.py \
-    --model_checkpoint_path=ra_sql_ckpts/ra_Qwen2.5-3B_ra_sql_ckpts/spider_ra_sft_model_cot_pre_order_3epoch_cot_pre_order \
-    --database_path=ra_data/spider/database \
-    --dataset_name=spider \
-    --table_value_cache_path=ra_data/spider/spider_dev_id2sampled_values.json \
-    --table_info_cache_path=ra_data/spider/spider_dev_id2db_info.json \
-    --input_file=ra_data/spider/dev_spider_ra_correct.json \
-    --table_json_path=ra_data/spider/tables.json \
-    --tokenizer_name=Qwen/Qwen2.5-3B \
-    --detailed_log sql_evaluation_detailed.txt \
-    --verbose 0 \
-    --save_errors \
-    --cot \
-    --mode dev \
-    --task_type ra
 
 Example for SQL evaluation (Spider with foreign keys):
-python ra_eval.py \
-  --model_checkpoint_path=sql_sft_model \
+python ra_eval_chat.py \
+  --model_checkpoint_path=sql_sft_chat_model \
   --database_path=ra_data/spider/database \
   --dataset_name=spider \
   --table_value_cache_path=ra_data/spider/spider_dev_id2sampled_values.json \
   --table_info_cache_path=ra_data/spider/spider_dev_id2db_info.json \
   --input_file=ra_data/bird/dev_20240627/dev_bird_ra_correct.json \
   --table_json_path=ra_data/spider/tables.json \
-  --tokenizer_name=Qwen/Qwen2.5-3B \
+  --tokenizer_name=Qwen/Qwen2.5-3B-Instruct \
   --detailed_log sql_evaluation_detailed.txt \
   --verbose 0 \
   --save_errors \
@@ -53,40 +38,56 @@ python ra_eval.py \
   --task_type sql
 
 Example for SQL evaluation (BIRD without tables.json):
-python ra_eval.py \
-  --model_checkpoint_path=sql_sft_model \
+python ra_eval_chat.py \
+  --model_checkpoint_path=sql_sft_chat_model \
   --database_path=ra_data/bird/dev_20240627/dev_databases \
   --dataset_name=bird \
   --table_value_cache_path=ra_data/bird/dev_20240627/bird_dev_id2sampled_values.json \
   --table_info_cache_path=ra_data/bird/dev_20240627/bird_dev_id2db_info.json \
   --input_file=ra_data/bird/dev_20240627/dev_bird_ra_correct.json \
-  --tokenizer_name=Qwen/Qwen2.5-3B \
+  --tokenizer_name=Qwen/Qwen2.5-3B-Instruct \
   --detailed_log sql_bird_evaluation.txt \
   --verbose 0 \
   --task_type sql
 
 Example for RA+SQL evaluation:
-python ra_eval.py \
-  --model_checkpoint_path=ra_sql_sft_model \
+python ra_eval_chat.py \
+  --model_checkpoint_path=ra_sql_sft_chat_model \
   --database_path=ra_data/bird/dev_20240627/dev_databases \
   --dataset_name=bird \
   --table_value_cache_path=ra_data/bird/dev_20240627/bird_dev_id2sampled_values.json \
   --table_info_cache_path=ra_data/bird/dev_20240627/bird_dev_id2db_info.json \
   --input_file=ra_data/bird/dev_20240627/dev_bird_ra_correct.json \
-  --tokenizer_name=Qwen/Qwen2.5-3B \
+  --tokenizer_name=Qwen/Qwen2.5-3B-Instruct \
   --detailed_log ra_sql_evaluation.txt \
   --verbose 0 \
   --task_type ra_sql
+
+Example for CoT evaluation (SynSQL-style):
+python ra_eval_chat.py \
+  --model_checkpoint_path=synsql_cot_3b_sft \
+  --database_path=ra_data/bird/dev_20240627/dev_databases \
+  --dataset_name=bird \
+  --table_value_cache_path=ra_data/bird/dev_20240627/bird_dev_id2sampled_values.json \
+  --table_info_cache_path=ra_data/bird/dev_20240627/bird_dev_id2db_info.json \
+  --input_file=ra_data/bird/dev_20240627/dev.json \
+  --tokenizer_name=Qwen/Qwen2.5-Coder-3B-Instruct \
+  --detailed_log cot_evaluation.txt \
+  --verbose 0 \
+  --task_type cot
 """
 
 """
-Evaluation script for Relational Algebra, SQL, or combined RA+SQL SFT model using vLLM for fast inference.
+Chat-aligned evaluation script for Relational Algebra, SQL, or combined RA+SQL SFT model using vLLM for fast inference.
 Performs detailed evaluation and logs results.
 
-Supports three task types:
+Uses chat template formatting (system + user messages) to match training format.
+
+Supports four task types:
 - 'ra': Evaluates Relational Algebra JSON outputs
 - 'sql': Evaluates SQL query outputs using Spider evaluation metrics
 - 'ra_sql': Evaluates both RA (from thinking) and SQL (from answer) outputs
+- 'cot': Evaluates chain-of-thought models (extracts SQL from CoT reasoning for evaluation)
 
 For SQL evaluation, provides:
 - Exact match accuracy
@@ -101,8 +102,8 @@ For RA+SQL evaluation, provides:
 - Component scores for both RA and SQL
 
 Example usage for RA:
-python ra_eval.py \
-    --model_checkpoint_path ./ra_sft_model \
+python ra_eval_chat.py \
+    --model_checkpoint_path ./ra_sft_chat_model \
     --database_path /path/to/database \
     --dataset_name spider \
     --table_value_cache_path /path/to/cache \
@@ -112,8 +113,8 @@ python ra_eval.py \
     --task_type ra
 
 Example usage for SQL:
-python ra_eval.py \
-    --model_checkpoint_path ./sql_sft_model \
+python ra_eval_chat.py \
+    --model_checkpoint_path ./sql_sft_chat_model \
     --database_path /path/to/database \
     --dataset_name spider \
     --table_value_cache_path /path/to/cache \
@@ -142,7 +143,10 @@ from eval_spider import (
     evaluate_single_pair,
     build_foreign_key_map_from_json
 )
-# import pdb  # Commented out, uncomment for debugging
+from eval_dual_metrics import evaluate_sql_dual_metrics, format_dual_metrics_summary
+from eval_bird_style import eval_exec_match_bird_style_simple, eval_exec_match_bird_style_with_results
+from eval_spider_official import eval_exec_match_official_simple
+from eval_spider2 import evaluate_single_spider2, load_jsonl_to_dict as load_spider2_eval_standard
 
 # Set environment variables for vLLM to avoid using /tmp
 # This should be done before importing vLLM
@@ -172,9 +176,14 @@ from training_prompts import (
 )
 
 
-class RelationalAlgebraVLLMEvaluator:
-    """Evaluator for Relational Algebra and SQL models using vLLM for fast inference."""
-    
+DEFAULT_SYSTEM_MESSAGE = (
+    "You are Qwen, created by Alibaba Cloud. You are a helpful assistant."
+)
+
+
+class ChatAlignedRelationalAlgebraVLLMEvaluator:
+    """Chat-aligned evaluator for Relational Algebra and SQL models using vLLM for fast inference."""
+
     def __init__(
         self,
         model_checkpoint_path: str,
@@ -187,9 +196,10 @@ class RelationalAlgebraVLLMEvaluator:
         top_p: float = 1.0,
         batch_size: int = 32,
         temp_dir_base: Optional[str] = None,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
     ):
         """Initialize evaluator with vLLM model and generation settings.
-        
+
         Args:
             model_checkpoint_path: Path to model checkpoint directory
             tokenizer_name: Tokenizer name (if different from checkpoint)
@@ -201,23 +211,25 @@ class RelationalAlgebraVLLMEvaluator:
             top_p: Top-p for nucleus sampling
             batch_size: Batch size for vLLM inference
             temp_dir_base: Base directory for temporary files (default: current directory)
+            system_message: System message for chat template
         """
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
         self.top_p = top_p
         self.batch_size = batch_size
         self.model_checkpoint_path = model_checkpoint_path
-        
+        self.system_message = system_message
+
         # Set base directory for temporary files
         if temp_dir_base is None:
             temp_dir_base = os.getcwd()  # Use current directory instead of /tmp
-        
+
         # Ensure temp base directory exists
         os.makedirs(temp_dir_base, exist_ok=True)
-        
+
         # Determine tokenizer path
         tokenizer_path = tokenizer_name if tokenizer_name else model_checkpoint_path
-        
+
         # Load tokenizer
         print(f"Loading tokenizer from {tokenizer_path}...")
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -226,11 +238,14 @@ class RelationalAlgebraVLLMEvaluator:
         )
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-        
-        # Check if checkpoint has necessary files
+
+        # Check if this is a HuggingFace model ID (e.g., "org/model-name") or local path
+        is_hf_model_id = not os.path.exists(model_checkpoint_path) and "/" in model_checkpoint_path
+
+        # Check if checkpoint has necessary files (only for local paths)
         checkpoint_files = os.listdir(model_checkpoint_path) if os.path.isdir(model_checkpoint_path) else []
         has_config = "config.json" in checkpoint_files
-        
+
         # Helper to detect if standard HF weights exist in directory
         def _has_standard_weights(d: str) -> bool:
             if not os.path.isdir(d):
@@ -251,31 +266,35 @@ class RelationalAlgebraVLLMEvaluator:
             if glob(os.path.join(d, "model-*.safetensors")):
                 return True
             return False
-        
+
         # Prepare model path for vLLM
         model_path_for_vllm = model_checkpoint_path
         temp_dir = None
-        
-        if not has_config and tokenizer_name:
+
+        # Skip checkpoint file handling for HuggingFace model IDs
+        if is_hf_model_id:
+            print(f"Detected HuggingFace model ID: {model_checkpoint_path}, will download directly from HF Hub")
+            self.temp_dir = None
+        elif not has_config and tokenizer_name:
             # Create a temporary directory with config from base model
             print(f"Checkpoint lacks config.json, creating temporary checkpoint with config from {tokenizer_name}...")
-            
+
             # Create temp directory in specified base directory
             temp_dir = tempfile.mkdtemp(prefix="vllm_checkpoint_", dir=temp_dir_base)
             print(f"Created temporary checkpoint directory: {temp_dir}")
-            
+
             # Copy checkpoint files
             for file in checkpoint_files:
                 src = os.path.join(model_checkpoint_path, file)
                 dst = os.path.join(temp_dir, file)
                 if os.path.isfile(src):
                     shutil.copy2(src, dst)
-            
+
             # Copy config.json from base model
             from huggingface_hub import hf_hub_download
             config_file = hf_hub_download(repo_id=tokenizer_name, filename="config.json")
             shutil.copy2(config_file, os.path.join(temp_dir, "config.json"))
-            
+
             # Also copy tokenizer files if not present
             if "tokenizer_config.json" not in checkpoint_files:
                 tokenizer_files = ["tokenizer_config.json", "tokenizer.json", "special_tokens_map.json", "tokenizer.model"]
@@ -285,7 +304,7 @@ class RelationalAlgebraVLLMEvaluator:
                         shutil.copy2(downloaded, os.path.join(temp_dir, file))
                     except:
                         pass  # Some tokenizers don't have all files
-            
+
             model_path_for_vllm = temp_dir
             self.temp_dir = temp_dir
         else:
@@ -293,7 +312,8 @@ class RelationalAlgebraVLLMEvaluator:
 
         # If no standard HF weights are present (typical with DeepSpeed ZeRO-3),
         # attempt to consolidate using zero_to_fp32.py into a temporary folder.
-        if not _has_standard_weights(model_checkpoint_path):
+        # Skip this check for HuggingFace model IDs as they will be downloaded directly
+        if not is_hf_model_id and not _has_standard_weights(model_checkpoint_path):
             zero_script = None
             # Prefer script in the checkpoint root, else try in sub-checkpoints
             candidate_scripts = [
@@ -361,7 +381,7 @@ class RelationalAlgebraVLLMEvaluator:
 
         # Initialize vLLM model
         print(f"Loading model with vLLM from {model_path_for_vllm}...")
-        
+
         # Set download cache directory if using custom temp dir
         if temp_dir_base:
             download_dir = os.path.join(temp_dir_base, "vllm_downloads")
@@ -369,11 +389,11 @@ class RelationalAlgebraVLLMEvaluator:
             os.environ['HF_HOME'] = download_dir
             os.environ['TRANSFORMERS_CACHE'] = download_dir
             print(f"Using download cache directory: {download_dir}")
-        
+
         # Ensure MKL/OpenMP configuration is compatible for any subprocesses (e.g., vLLM inspectors)
         os.environ.setdefault("MKL_THREADING_LAYER", "GNU")
         os.environ.setdefault("MKL_SERVICE_FORCE_INTEL", "1")
-        
+
         try:
             vllm_kwargs = {
                 "model": model_path_for_vllm,
@@ -384,19 +404,19 @@ class RelationalAlgebraVLLMEvaluator:
                 "dtype": "bfloat16",
                 "download_dir": download_dir if temp_dir_base else None,
             }
-            
+
             if max_model_len:
                 vllm_kwargs["max_model_len"] = max_model_len
-            
+
             self.model = LLM(**vllm_kwargs)
             print("vLLM model loaded successfully!")
-            
+
         except Exception as e:
             print(f"Error loading model with vLLM: {e}")
             if self.temp_dir:
                 shutil.rmtree(self.temp_dir)
             raise
-    
+
     def __del__(self):
         """Clean up temporary directory if created."""
         if hasattr(self, 'temp_dir') and self.temp_dir and os.path.exists(self.temp_dir):
@@ -405,7 +425,7 @@ class RelationalAlgebraVLLMEvaluator:
                 print(f"Cleaned up temporary directory: {self.temp_dir}")
             except Exception as e:
                 print(f"Warning: Could not clean up temp directory {self.temp_dir}: {e}")
-    
+
     def parse_ra_output(self, text: str) -> Optional[Dict]:
         """Parse relational algebra JSON from model output.
 
@@ -429,11 +449,38 @@ class RelationalAlgebraVLLMEvaluator:
             extract_answer_func=extract_answer_content,
             extract_sql_func=extract_sql_from_text
         )
-    
+
+    def format_chat_prompt(self, prompt_text: str) -> str:
+        """Format prompt with chat template.
+
+        Args:
+            prompt_text: The raw prompt text
+
+        Returns:
+            Chat-formatted prompt string
+        """
+        messages = []
+        if self.system_message:
+            messages.append({"role": "system", "content": self.system_message})
+        messages.append({"role": "user", "content": prompt_text})
+
+        # Apply chat template with generation prompt
+        chat_prompt = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        return chat_prompt
+
     def generate_batch_predictions(self, prompts: List[str]) -> List[tuple[str, float]]:
-        """Generate predictions for a batch of prompts using vLLM."""
+        """Generate predictions for a batch of prompts using vLLM.
+
+        Args:
+            prompts: List of raw prompt texts (will be formatted with chat template)
+
+        Returns:
+            List of (generated_text, generation_time) tuples
+        """
         start_time = time.time()
-        
+
         # Create sampling params
         sampling_params = SamplingParams(
             temperature=self.temperature,
@@ -441,23 +488,23 @@ class RelationalAlgebraVLLMEvaluator:
             max_tokens=self.max_new_tokens,
             stop=[self.tokenizer.eos_token] if self.tokenizer.eos_token else None,
         )
-        
-        # Add newline to prompts
-        formatted_prompts = [p + "\n" for p in prompts]
-        
+
+        # Format prompts with chat template
+        formatted_prompts = [self.format_chat_prompt(p) for p in prompts]
+
         # Generate with vLLM
         outputs = self.model.generate(formatted_prompts, sampling_params)
-        
+
         # Extract generated texts
         results = []
         gen_time_per_sample = (time.time() - start_time) / len(prompts)
-        
+
         for output in outputs:
             generated_text = output.outputs[0].text.strip()
             results.append((generated_text, gen_time_per_sample))
-        
+
         return results
-    
+
     def evaluate_dataset(
         self,
         dataset: List[Dict[str, Any]],
@@ -475,7 +522,12 @@ class RelationalAlgebraVLLMEvaluator:
         debug: bool = False,
         log_ra_pair_path: Optional[str] = None,
         task_type: str = 'ra',
-        table_json_path: Optional[str] = None
+        table_json_path: Optional[str] = None,
+        save_exec_details: bool = False,
+        exec_timeout: Optional[int] = None,
+        skip_ra_eval: bool = False,
+        spider2_gold_result_dir: Optional[str] = None,
+        spider2_eval_standard: Optional[str] = None
     ) -> Dict[str, Any]:
         """Evaluate model on dataset with detailed logging using vLLM batching.
 
@@ -496,22 +548,36 @@ class RelationalAlgebraVLLMEvaluator:
             log_ra_pair_path: Path to save RA pairs
             task_type: Task type ('ra', 'sql', or 'ra_sql')
             table_json_path: Path to tables.json for SQL evaluation
+            save_exec_details: Save execution result details
+            exec_timeout: SQL execution timeout in seconds (None = no timeout)
 
         Returns:
             Dictionary containing evaluation results with metrics and detailed outputs
         """
 
-        # Load foreign key maps if evaluating SQL or RA+SQL (optional, mainly for Spider)
+        # Load foreign key maps if evaluating SQL, RA+SQL, or CoT (optional, mainly for Spider)
         kmaps = None
-        if task_type in ['sql', 'ra_sql'] and table_json_path and os.path.exists(table_json_path):
+        if task_type in ['sql', 'ra_sql', 'cot'] and table_json_path and os.path.exists(table_json_path):
             print(f"Loading foreign key maps from {table_json_path}...")
+            # import pdb; pdb.set_trace()
             try:
                 kmaps = build_foreign_key_map_from_json(table_json_path)
             except Exception as e:
                 print(f"Warning: Could not load foreign key maps: {e}")
                 print("Continuing without foreign key maps (may affect accuracy slightly)")
                 kmaps = None
-        
+
+        # Load Spider2 evaluation standard if provided
+        spider2_eval_standard_dict = None
+        if dataset_name == 'spider2' and spider2_eval_standard and os.path.exists(spider2_eval_standard):
+            print(f"Loading Spider2 evaluation standard from {spider2_eval_standard}...")
+            try:
+                spider2_eval_standard_dict = load_spider2_eval_standard(spider2_eval_standard)
+                print(f"Loaded {len(spider2_eval_standard_dict)} Spider2 evaluation standards")
+            except Exception as e:
+                print(f"Warning: Could not load Spider2 evaluation standard: {e}")
+                spider2_eval_standard_dict = None
+
         results = {
             "metadata": {
                 "model_checkpoint": model_checkpoint_path,
@@ -519,6 +585,8 @@ class RelationalAlgebraVLLMEvaluator:
                 "evaluation_timestamp": datetime.now().isoformat(),
                 "num_samples": min(len(dataset), max_samples) if max_samples else len(dataset),
                 "task_type": task_type,
+                "chat_aligned": True,
+                "system_message": self.system_message,
                 "generation_config": {
                     "max_new_tokens": self.max_new_tokens,
                     "temperature": self.temperature,
@@ -540,10 +608,18 @@ class RelationalAlgebraVLLMEvaluator:
             "detailed_results": []
         }
 
-        # Add SQL-specific metrics if evaluating SQL or RA+SQL
-        if task_type in ['sql', 'ra_sql']:
+        # Add SQL-specific metrics if evaluating SQL, RA+SQL, or CoT
+        if task_type in ['sql', 'ra_sql', 'cot']:
             results["overall_metrics"]["exec_accuracy"] = 0.0
             results["overall_metrics"]["exec_correct"] = 0
+            # BIRD-style metrics (official benchmark)
+            results["overall_metrics"]["exec_bird_accuracy"] = 0.0
+            results["overall_metrics"]["exec_bird_correct"] = 0
+            # Official Spider metrics (official benchmark, more lenient than res_map)
+            results["overall_metrics"]["exec_spider_official_accuracy"] = 0.0
+            results["overall_metrics"]["exec_spider_official_correct"] = 0
+            results["overall_metrics"]["exec_methods_agree"] = 0
+            results["overall_metrics"]["exec_bird_more_lenient"] = 0
 
         # Add RA+SQL specific metrics
         if task_type == 'ra_sql':
@@ -557,14 +633,25 @@ class RelationalAlgebraVLLMEvaluator:
             results["overall_metrics"]["sql_score"] = 0.0
             results["overall_metrics"]["ra_component_recall_score"] = 0.0
             results["overall_metrics"]["sql_component_recall_score"] = 0.0
-        
+
+        # Add Spider2-specific metrics
+        if dataset_name == 'spider2':
+            results["overall_metrics"]["spider2_correct"] = 0
+            results["overall_metrics"]["spider2_accuracy"] = 0.0
+            results["metadata"]["eval_method"] = "spider2"
+            if spider2_eval_standard_dict:
+                results["metadata"]["spider2_eval_standard_loaded"] = True
+            else:
+                results["metadata"]["spider2_eval_standard_loaded"] = False
+                print("Warning: Spider2 evaluation standard not loaded. Using BIRD-style fallback evaluation.")
+
         eval_samples = dataset[:max_samples] if max_samples else dataset
-        
+
         # Process in batches
         batch_prompts = []
         batch_items = []
         batch_indices = []
-        
+
         print("Preparing prompts...")
         for idx, item in enumerate(tqdm(eval_samples, desc="Preparing")):
             # Get prompt based on task type
@@ -588,6 +675,18 @@ class RelationalAlgebraVLLMEvaluator:
                     mode=mode,
                     cot=cot
                 )
+            elif task_type == 'cot':
+                # CoT task: use SQL-style prompt (question + schema)
+                # Model generates chain-of-thought reasoning that includes SQL
+                prompt = get_input_seq(
+                    item,
+                    database_path,
+                    dataset_name,
+                    table_value_cache_path,
+                    table_info_cache_path,
+                    mode=mode,
+                    cot=False  # Don't add CoT in prompt since model generates it
+                )
             else:  # SQL task
                 prompt = get_input_seq(
                     item,
@@ -598,47 +697,68 @@ class RelationalAlgebraVLLMEvaluator:
                     mode=mode,
                     cot=cot
                 )
-            
+
             batch_prompts.append(prompt)
             batch_items.append(item)
             batch_indices.append(idx)
-        
+
         # Generate predictions in batches
         all_predictions = []
         print(f"Generating predictions in batches of {self.batch_size}...")
-        
+
         for i in tqdm(range(0, len(batch_prompts), self.batch_size), desc="Batch inference"):
             batch_end = min(i + self.batch_size, len(batch_prompts))
             batch = batch_prompts[i:batch_end]
-            
+
             # Generate batch predictions
             batch_results = self.generate_batch_predictions(batch)
             all_predictions.extend(batch_results)
-        
+
         # Process results
         print("Processing results...")
         total_gen_time = 0.0
-        
+
         # Open detailed log file if specified
         detailed_log_file = None
         if detailed_log_path:
             detailed_log_file = open(detailed_log_path, 'w', encoding='utf-8')
-            detailed_log_file.write(f"Evaluation Log - {datetime.now().isoformat()}\n")
+            detailed_log_file.write(f"Evaluation Log (Chat-Aligned) - {datetime.now().isoformat()}\n")
             detailed_log_file.write(f"Model: {model_checkpoint_path}\n")
             detailed_log_file.write(f"Tokenizer: {tokenizer_name or model_checkpoint_path}\n")
             detailed_log_file.write(f"Dataset: {dataset_name}\n")
+            detailed_log_file.write(f"Chat Template: Enabled\n")
+            detailed_log_file.write(f"System Message: {self.system_message}\n")
             detailed_log_file.write(f"Total Samples to Evaluate: {len(eval_samples)}\n")
             detailed_log_file.write(f"{'='*100}\n\n")
 
         if log_ra_pair_path and debug:
             log_json = []
-        
+
         for idx, (item, prompt, (pred_text, gen_time)) in enumerate(
             tqdm(zip(batch_items, batch_prompts, all_predictions), desc="Processing", total=len(batch_items))
         ):
             results["overall_metrics"]["total"] += 1
             total_gen_time += gen_time
 
+            # if idx in [361, 368, 417, 426, 427,428] and dataset_name == "bird":  # For debugging specific samples
+            #     print("skipping sample 361")
+            #     continue
+            # if idx in [395, 396, 426 , 427, 428] and dataset_name == "bird":  # For debugging specific samples
+            #     print("skipping sample 395, 396, 426, 427, 428")
+            #     continue
+            # if idx in [732, 733, 734, 735] and dataset_name == "spider":  # For debugging specific samples
+            #     # import pdb; pdb.set_trace()
+            #     print("skipping sample 732, 733, 734, 735")
+            #     continue
+            # if idx in [330,331,352] and dataset_name == "spider-dk-omnisql":  # For debugging specific samples
+            #     print("skipping sample 331 or 353")
+            #     continue
+            # if idx in [53, 54, 55, 114] and dataset_name == "spider2":  # For debugging specific samples 59, 114
+            #     print("skipping sample 331 or 353")
+            #     continue
+            if idx in [114] and dataset_name == "spider2":  # For debugging specific samples 59, 114
+                print("skipping sample 331 or 353")
+                continue
             # Initialize common variables
             is_correct = False
             parse_error = False
@@ -647,7 +767,11 @@ class RelationalAlgebraVLLMEvaluator:
                 'score': 0,
                 'component_recall_score': 0
             }
-            exec_accuracy = None  # For SQL evaluation
+            exec_accuracy = None  # For SQL evaluation (Spider-style res_map)
+            exec_bird = None      # For SQL evaluation (BIRD-style)
+            exec_spider_official = None  # For SQL evaluation (Official Spider)
+            pred_exec_results = None  # Actual query results from predicted SQL
+            gold_exec_results = None  # Actual query results from gold SQL
 
             if task_type == 'ra':
                 # Get ground truth RA
@@ -656,18 +780,6 @@ class RelationalAlgebraVLLMEvaluator:
 
                 # Parse prediction
                 pred_ra = self.parse_ra_output(pred_text)
-
-                # if log_ra_pair_path and debug:
-                #     # save as a json dict
-                #     log_entry = {
-                #         "question_id": item.get("question_id", f"sample_{idx}"),
-                #         "question": item.get("question", ""),
-                #         "SQL": item.get("SQL", ""),
-                #         "ground_truth": gold_ra,
-                #         "model_output_raw": pred_text,
-                #         "model_output_parsed": pred_ra
-                #     }
-                #     log_json.append(log_entry)
 
                 if pred_ra is None:
                     parse_error = True
@@ -707,10 +819,10 @@ class RelationalAlgebraVLLMEvaluator:
                     log_json.append(log_entry)
 
             elif task_type == 'ra_sql':
-                # RA+SQL evaluation - evaluate both components
+                # RA+SQL evaluation - evaluate both components (or SQL only if skip_ra_eval=True)
 
                 # Get ground truth
-                gold_ra = item["relational_algebra"]
+                gold_ra = item.get("relational_algebra", None)  # May not exist if skip_ra_eval=True
                 gold_sql = get_sql_field_from_item(item, dataset_name)
                 db_id = item.get("db_id", "")
 
@@ -719,32 +831,34 @@ class RelationalAlgebraVLLMEvaluator:
                 sql_match = False
                 ra_cont_res = {'score': 0, 'component_recall_score': 0}
                 sql_cont_res = {'score': 0, 'component_recall_score': 0}
+                pred_ra = None
 
-                # Extract and evaluate RA from thinking section
-                thinking_content = extract_thinking_content(pred_text)
-                if thinking_content:
-                    pred_ra = self.parse_ra_output(thinking_content)
-                else:
-                    # Try extracting from whole text if no thinking section
-                    pred_ra = self.parse_ra_output(pred_text)
+                # Extract and evaluate RA from thinking section (skip if skip_ra_eval=True or no RA ground truth)
+                if not skip_ra_eval and gold_ra is not None:
+                    thinking_content = extract_thinking_content(pred_text)
+                    if thinking_content:
+                        pred_ra = self.parse_ra_output(thinking_content)
+                    else:
+                        # Try extracting from whole text if no thinking section
+                        pred_ra = self.parse_ra_output(pred_text)
 
-                if pred_ra is None:
-                    parse_error = True
-                    error_message = "Failed to parse RA JSON from model output"
-                    results["overall_metrics"]["parse_errors"] += 1
-                else:
-                    # Compute RA continuous scores
-                    try:
-                        ra_cont_res = ra_eval_res(gold_ra, pred_ra, debug=debug)
-                    except:
-                        ra_cont_res = {'score': 0, 'component_recall_score': 0}
+                    if pred_ra is None:
+                        parse_error = True
+                        error_message = "Failed to parse RA JSON from model output"
+                        results["overall_metrics"]["parse_errors"] += 1
+                    else:
+                        # Compute RA continuous scores
+                        try:
+                            ra_cont_res = ra_eval_res(gold_ra, pred_ra, debug=debug)
+                        except:
+                            ra_cont_res = {'score': 0, 'component_recall_score': 0}
 
-                    ra_match = (pred_ra == gold_ra)
-                    if ra_match:
-                        results["overall_metrics"]["ra_correct"] += 1
+                        ra_match = (pred_ra == gold_ra)
+                        if ra_match:
+                            results["overall_metrics"]["ra_correct"] += 1
 
-                results['overall_metrics']['ra_score'] += ra_cont_res['score']
-                results['overall_metrics']['ra_component_recall_score'] += ra_cont_res['component_recall_score']
+                    results['overall_metrics']['ra_score'] += ra_cont_res['score']
+                    results['overall_metrics']['ra_component_recall_score'] += ra_cont_res['component_recall_score']
 
                 # Extract and evaluate SQL
                 pred_sql = self.parse_sql_output(pred_text)
@@ -754,33 +868,104 @@ class RelationalAlgebraVLLMEvaluator:
                         parse_error = True
                         error_message = "Failed to parse SQL from model output"
                         results["overall_metrics"]["parse_errors"] += 1
+                # Spider2-specific evaluation: compare against gold execution results (CSV files)
+                elif dataset_name == 'spider2' and spider2_eval_standard_dict and spider2_gold_result_dir:
+                    instance_id = item.get('instance_id', '')
+                    eval_std = spider2_eval_standard_dict.get(instance_id, {
+                        'condition_cols': [],
+                        'ignore_order': False
+                    })
+
+                    spider2_result = evaluate_single_spider2(
+                        instance_id=instance_id,
+                        pred_sql=pred_sql,
+                        db_path=database_path,
+                        db_id=db_id,
+                        gold_result_dir=spider2_gold_result_dir,
+                        eval_standard=eval_std,
+                        timeout=exec_timeout or 30
+                    )
+
+                    spider2_score = spider2_result['score']
+                    sql_match = spider2_score == 1
+                    exec_accuracy = spider2_score  # Spider2 uses execution result comparison
+                    exec_bird = spider2_score  # Same result for BIRD-style too
+
+                    if spider2_result.get('error_info'):
+                        error_message = spider2_result['error_info']
+
+                    sql_cont_res = {
+                        'score': float(spider2_score),
+                        'component_recall_score': float(spider2_score)
+                    }
+
+                    if sql_match:
+                        results["overall_metrics"]["sql_correct"] += 1
+                        results["overall_metrics"]["spider2_correct"] += 1
+                    if exec_accuracy == 1:
+                        results["overall_metrics"]["exec_correct"] += 1
+                    if exec_bird == 1:
+                        results["overall_metrics"]["exec_bird_correct"] += 1
+
+                    if verbose > 1 or debug:
+                        print(f"[DEBUG] Spider2 eval for {instance_id}: score={spider2_score}, error={spider2_result.get('error_info')}")
                 else:
                     # Evaluate SQL using Spider evaluation
                     try:
                         if kmaps is not None:
-                            eval_result = evaluate_single_pair(
+                            eval_result = evaluate_sql_dual_metrics(
                                 pred_sql=pred_sql,
                                 gold_sql=gold_sql,
                                 db_dir=database_path,
                                 db_name=db_id,
                                 etype='all',
-                                kmaps=kmaps
+                                kmaps=kmaps,
+                                dataset_name=dataset_name,  # Pass dataset name for consistent exact match
+                                exec_timeout=exec_timeout
                             )
                         else:
                             # Create empty kmaps dict for evaluation
                             empty_kmaps = {db_id: {}} if db_id else {}
-                            eval_result = evaluate_single_pair(
+                            eval_result = evaluate_sql_dual_metrics(
                                 pred_sql=pred_sql,
                                 gold_sql=gold_sql,
                                 db_dir=database_path,
                                 db_name=db_id,
                                 etype='all',
-                                kmaps=empty_kmaps
+                                kmaps=empty_kmaps,
+                                dataset_name=dataset_name,  # Pass dataset name for consistent exact match
+                                exec_timeout=exec_timeout
                             )
 
                         # Extract SQL scores
                         sql_match = eval_result['exact'] == 1
-                        exec_accuracy = eval_result['exec']
+                        exec_accuracy = eval_result['exec_spider']  # Spider-style
+                        exec_bird = eval_result['exec_bird']        # BIRD-style
+
+                        # Try official Spider execution (most lenient method)
+                        # Only run for Spider dataset variants (slow operation, not needed for BIRD-style)
+                        if dataset_name in ['spider', 'spider-dk', 'spider-syn', 'spider-realistic', 'spider-dk-omnisql']:
+                            try:
+                                db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                if os.path.exists(db_path):
+                                    official_success = eval_exec_match_official_simple(db_path, pred_sql, gold_sql)
+                                    exec_spider_official = 1 if official_success else 0
+                                    if exec_spider_official == 1:
+                                        results["overall_metrics"]["exec_spider_official_correct"] += 1
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] Official Spider execution: {official_success}")
+                                else:
+                                    exec_spider_official = None
+                            except Exception as official_e:
+                                exec_spider_official = None
+                                if verbose > 1 or debug:
+                                    print(f"[DEBUG] Official Spider execution failed: {official_e}")
+                        else:
+                            # Skip official Spider execution for non-Spider datasets (e.g., BIRD, spider2, ehrsql, sciencebenchmark)
+                            exec_spider_official = None
+
+                        if verbose > 1 or debug:
+                            print(f"[DEBUG] Sample {item.get('question_id')}: exec_spider={exec_accuracy}, exec_bird={exec_bird}, exec_spider_official={exec_spider_official}")
 
                         if eval_result['partial']:
                             partial_scores = eval_result['partial']
@@ -801,10 +986,23 @@ class RelationalAlgebraVLLMEvaluator:
                             results["overall_metrics"]["sql_correct"] += 1
                         if exec_accuracy == 1:
                             results["overall_metrics"]["exec_correct"] += 1
+
+                        # Track BIRD-style execution
+                        if exec_bird == 1:
+                            results["overall_metrics"]["exec_bird_correct"] += 1
+                        if eval_result.get('exec_methods_agree'):
+                            results["overall_metrics"]["exec_methods_agree"] += 1
+                        if eval_result.get('exec_bird_more_lenient'):
+                            results["overall_metrics"]["exec_bird_more_lenient"] += 1
                     except Exception as e:
-                        # Fallback to simple string comparison
-                        if debug:
-                            print(f"Warning: Full SQL evaluation failed, using string comparison: {e}")
+                        # Fallback to simple string comparison + BIRD execution
+                        if debug or verbose > 0:
+                            print(f"Warning: Full SQL evaluation failed, using string comparison + BIRD execution: {e}")
+                            if verbose > 1:
+                                import traceback
+                                traceback.print_exc()
+
+                        # String comparison for SQL match
                         gold_normalized = normalize_sql_query(gold_sql)
                         pred_normalized = normalize_sql_query(pred_sql)
                         sql_match = (gold_normalized == pred_normalized)
@@ -814,7 +1012,50 @@ class RelationalAlgebraVLLMEvaluator:
                             'score': 1.0 if sql_match else 0.0,
                             'component_recall_score': 1.0 if sql_match else 0.0
                         }
-                        exec_accuracy = None
+
+                        # Try BIRD execution even if Spider parsing failed
+                        exec_accuracy = None  # Spider parsing failed, can't get Spider exec
+                        try:
+                            db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                            if os.path.exists(db_path):
+                                bird_success, bird_error, pred_exec_results, gold_exec_results = eval_exec_match_bird_style_with_results(db_path, pred_sql, gold_sql)
+                                exec_bird = 1 if bird_success else 0
+                                if exec_bird == 1:
+                                    results["overall_metrics"]["exec_bird_correct"] += 1
+                                if verbose > 1 or debug:
+                                    print(f"[DEBUG] BIRD execution fallback: {bird_success}")
+                                    if not bird_success and bird_error:
+                                        print(f"[DEBUG] BIRD error: {bird_error}")
+                            else:
+                                exec_bird = None
+                                if verbose > 1 or debug:
+                                    print(f"[DEBUG] Database not found at {db_path}")
+                        except Exception as bird_e:
+                            exec_bird = None
+                            if verbose > 1 or debug:
+                                print(f"[DEBUG] BIRD execution also failed: {bird_e}")
+
+                        # Try official Spider execution (more lenient than res_map)
+                        # Only run for Spider dataset variants (slow operation, not needed for BIRD-style)
+                        if dataset_name in ['spider', 'spider-dk', 'spider-syn', 'spider-realistic', 'spider-dk-omnisql']:
+                            try:
+                                db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                if os.path.exists(db_path):
+                                    official_success = eval_exec_match_official_simple(db_path, pred_sql, gold_sql)
+                                    exec_spider_official = 1 if official_success else 0
+                                    if exec_spider_official == 1:
+                                        results["overall_metrics"]["exec_spider_official_correct"] += 1
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] Official Spider execution: {official_success}")
+                                else:
+                                    exec_spider_official = None
+                            except Exception as official_e:
+                                exec_spider_official = None
+                                if verbose > 1 or debug:
+                                    print(f"[DEBUG] Official Spider execution failed: {official_e}")
+                        else:
+                            # Skip official Spider execution for non-Spider datasets (e.g., BIRD)
+                            exec_spider_official = None
 
                 results['overall_metrics']['sql_score'] += sql_cont_res['score']
                 results['overall_metrics']['sql_component_recall_score'] += sql_cont_res['component_recall_score']
@@ -840,10 +1081,23 @@ class RelationalAlgebraVLLMEvaluator:
                 results['overall_metrics']['score'] += cont_res['score']
                 results['overall_metrics']['component_recall_score'] += cont_res['component_recall_score']
 
-            else:  # SQL evaluation
-                # Get ground truth SQL
-                gold_sql = item.get("SQL", item.get("sql", ""))
+            else:  # SQL or CoT evaluation
+                # For SQL: model outputs SQL directly
+                # For CoT: model outputs chain-of-thought reasoning that includes SQL
+                # In both cases, we extract and evaluate the SQL query
+
+                # Get ground truth SQL using dataset-aware function
+                # Spider variants use 'query' field, BIRD/OmniSQL uses 'SQL' or 'sql' field
+                if dataset_name.lower() in ['spider', 'spider-dk', 'spider-syn', 'spider-realistic', 'spider-dk-omnisql']:
+                    gold_sql = item.get("query", item.get("SQL", ""))
+                else:
+                    # BIRD, spider2, ehrsql, sciencebenchmark use 'SQL' or 'sql'
+                    gold_sql = item.get("SQL", item.get("sql", ""))
                 db_id = item.get("db_id", "")
+
+                # Initialize execution variables
+                exec_accuracy = None
+                exec_bird = None
 
                 # Parse predicted SQL
                 pred_sql = self.parse_sql_output(pred_text)
@@ -853,22 +1107,65 @@ class RelationalAlgebraVLLMEvaluator:
                     error_message = "Failed to parse SQL from model output"
                     results["overall_metrics"]["parse_errors"] += 1
                     cont_res = {'score': 0, 'component_recall_score': 0}
+                # Spider2-specific evaluation: compare against gold execution results (CSV files)
+                elif dataset_name == 'spider2' and spider2_eval_standard_dict and spider2_gold_result_dir:
+                    instance_id = item.get('instance_id', '')
+                    eval_std = spider2_eval_standard_dict.get(instance_id, {
+                        'condition_cols': [],
+                        'ignore_order': False
+                    })
+
+                    spider2_result = evaluate_single_spider2(
+                        instance_id=instance_id,
+                        pred_sql=pred_sql,
+                        db_path=database_path,
+                        db_id=db_id,
+                        gold_result_dir=spider2_gold_result_dir,
+                        eval_standard=eval_std,
+                        timeout=exec_timeout or 30
+                    )
+
+                    spider2_score = spider2_result['score']
+                    is_correct = spider2_score == 1
+                    exec_accuracy = spider2_score  # Spider2 uses execution result comparison
+                    exec_bird = spider2_score  # Same result for BIRD-style too
+
+                    if spider2_result.get('error_info'):
+                        error_message = spider2_result['error_info']
+
+                    cont_res = {
+                        'score': float(spider2_score),
+                        'component_recall_score': float(spider2_score)
+                    }
+
+                    if is_correct:
+                        results["overall_metrics"]["correct"] += 1
+                        results["overall_metrics"]["spider2_correct"] += 1
+                    if exec_accuracy == 1:
+                        results["overall_metrics"]["exec_correct"] += 1
+                    if exec_bird == 1:
+                        results["overall_metrics"]["exec_bird_correct"] += 1
+
+                    if verbose > 1 or debug:
+                        print(f"[DEBUG] Spider2 eval for {instance_id}: score={spider2_score}, error={spider2_result.get('error_info')}")
                 else:
                     # Evaluate SQL using Spider evaluation
                     try:
                         if kmaps is not None:
-                            eval_result = evaluate_single_pair(
+                            eval_result = evaluate_sql_dual_metrics(
                                 pred_sql=pred_sql,
                                 gold_sql=gold_sql,
                                 db_dir=database_path,
                                 db_name=db_id,
                                 etype='all',  # Evaluate both execution and matching
-                                kmaps=kmaps
+                                kmaps=kmaps,
+                                dataset_name=dataset_name  # Pass dataset name for consistent exact match
                             )
 
                             # Extract scores
                             is_correct = eval_result['exact'] == 1
-                            exec_accuracy = eval_result['exec']
+                            exec_accuracy = eval_result['exec_spider']  # Spider-style
+                            exec_bird = eval_result['exec_bird']        # BIRD-style
 
                             # Map partial scores to continuous scores
                             if eval_result['partial']:
@@ -891,23 +1188,50 @@ class RelationalAlgebraVLLMEvaluator:
                                 results["overall_metrics"]["correct"] += 1
                             if exec_accuracy == 1:
                                 results["overall_metrics"]["exec_correct"] += 1
+                            # Track BIRD execution
+                            if exec_bird == 1:
+                                results["overall_metrics"]["exec_bird_correct"] += 1
+
+                            # Try official Spider execution (most lenient method)
+                            # Only run for Spider dataset variants (slow operation, not needed for BIRD-style)
+                            if dataset_name in ['spider', 'spider-dk', 'spider-syn', 'spider-realistic', 'spider-dk-omnisql']:
+                                try:
+                                    db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                    if os.path.exists(db_path):
+                                        official_success = eval_exec_match_official_simple(db_path, pred_sql, gold_sql)
+                                        exec_spider_official = 1 if official_success else 0
+                                        if exec_spider_official == 1:
+                                            results["overall_metrics"]["exec_spider_official_correct"] += 1
+                                        if verbose > 1 or debug:
+                                            print(f"[DEBUG] Official Spider execution: {official_success}")
+                                    else:
+                                        exec_spider_official = None
+                                except Exception as official_e:
+                                    exec_spider_official = None
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] Official Spider execution failed: {official_e}")
+                            else:
+                                # Skip official Spider execution for non-Spider datasets (e.g., BIRD)
+                                exec_spider_official = None
                         else:
                             # Evaluate without foreign key maps (works for BIRD or when tables.json unavailable)
                             try:
                                 # Create empty kmaps dict for evaluation
                                 empty_kmaps = {db_id: {}} if db_id else {}
-                                eval_result = evaluate_single_pair(
+                                eval_result = evaluate_sql_dual_metrics(
                                     pred_sql=pred_sql,
                                     gold_sql=gold_sql,
                                     db_dir=database_path,
                                     db_name=db_id,
                                     etype='all',
-                                    kmaps=empty_kmaps
+                                    kmaps=empty_kmaps,
+                                    dataset_name=dataset_name  # Pass dataset name for consistent exact match
                                 )
 
                                 # Extract scores
                                 is_correct = eval_result['exact'] == 1
-                                exec_accuracy = eval_result['exec']
+                                exec_accuracy = eval_result['exec_spider']  # Spider-style
+                                exec_bird = eval_result['exec_bird']        # BIRD-style
 
                                 # Map partial scores to continuous scores
                                 if eval_result['partial']:
@@ -929,11 +1253,35 @@ class RelationalAlgebraVLLMEvaluator:
                                     results["overall_metrics"]["correct"] += 1
                                 if exec_accuracy == 1:
                                     results["overall_metrics"]["exec_correct"] += 1
+                                # Track BIRD execution
+                                if exec_bird == 1:
+                                    results["overall_metrics"]["exec_bird_correct"] += 1
+
+                                # Try official Spider execution (most lenient method)
+                                try:
+                                    db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                    if os.path.exists(db_path):
+                                        official_success = eval_exec_match_official_simple(db_path, pred_sql, gold_sql)
+                                        exec_spider_official = 1 if official_success else 0
+                                        if exec_spider_official == 1:
+                                            results["overall_metrics"]["exec_spider_official_correct"] += 1
+                                        if verbose > 1 or debug:
+                                            print(f"[DEBUG] Official Spider execution: {official_success}")
+                                    else:
+                                        exec_spider_official = None
+                                except Exception as official_e:
+                                    exec_spider_official = None
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] Official Spider execution failed: {official_e}")
 
                             except Exception as e:
-                                # Fallback to simple string comparison
-                                if debug:
-                                    print(f"Warning: Full SQL evaluation failed, using string comparison: {e}")
+                                # Fallback to simple string comparison + BIRD execution
+                                if debug or verbose > 0:
+                                    print(f"Warning: Full SQL evaluation failed, using string comparison + BIRD execution: {e}")
+                                    if verbose > 1:
+                                        import traceback
+                                        traceback.print_exc()
+
                                 gold_normalized = normalize_sql_query(gold_sql)
                                 pred_normalized = normalize_sql_query(pred_sql)
                                 is_correct = (gold_normalized == pred_normalized)
@@ -943,15 +1291,55 @@ class RelationalAlgebraVLLMEvaluator:
                                     'score': 1.0 if is_correct else 0.0,
                                     'component_recall_score': 1.0 if is_correct else 0.0
                                 }
+
+                                # Try BIRD execution even if Spider parsing failed
+                                exec_accuracy = None
+                                try:
+                                    db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                    if os.path.exists(db_path):
+                                        bird_success, bird_error, pred_exec_results, gold_exec_results = eval_exec_match_bird_style_with_results(db_path, pred_sql, gold_sql)
+                                        exec_bird = 1 if bird_success else 0
+                                        if exec_bird == 1:
+                                            results["overall_metrics"]["exec_bird_correct"] += 1
+                                        if verbose > 1 or debug:
+                                            print(f"[DEBUG] BIRD execution fallback: {bird_success}")
+                                            if not bird_success and bird_error:
+                                                print(f"[DEBUG] BIRD error: {bird_error}")
+                                    else:
+                                        exec_bird = None
+                                except Exception as bird_e:
+                                    exec_bird = None
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] BIRD execution also failed: {bird_e}")
+
+                                # Try official Spider execution (more lenient than res_map)
+                                try:
+                                    db_path = os.path.join(database_path, db_id, f"{db_id}.sqlite")
+                                    if os.path.exists(db_path):
+                                        official_success = eval_exec_match_official_simple(db_path, pred_sql, gold_sql)
+                                        exec_spider_official = 1 if official_success else 0
+                                        if exec_spider_official == 1:
+                                            results["overall_metrics"]["exec_spider_official_correct"] += 1
+                                        if verbose > 1 or debug:
+                                            print(f"[DEBUG] Official Spider execution: {official_success}")
+                                    else:
+                                        exec_spider_official = None
+                                except Exception as official_e:
+                                    exec_spider_official = None
+                                    if verbose > 1 or debug:
+                                        print(f"[DEBUG] Official Spider execution failed: {official_e}")
                     except Exception as e:
                         error_message = f"SQL evaluation error: {str(e)}"
                         cont_res = {'score': 0, 'component_recall_score': 0}
+                        exec_accuracy = None
+                        exec_bird = None
+                        exec_spider_official = None
                         if debug:
                             print(f"Error evaluating SQL: {e}")
 
                 results['overall_metrics']['score'] += cont_res['score']
                 results['overall_metrics']['component_recall_score'] += cont_res['component_recall_score']
-            
+
             # Create detailed result entry
             result_entry = {
                 "index": batch_indices[idx],
@@ -978,20 +1366,54 @@ class RelationalAlgebraVLLMEvaluator:
                 result_entry["sql_match"] = sql_match
                 if exec_accuracy is not None:
                     result_entry["exec_accuracy"] = exec_accuracy
+                # Save detailed execution results if flag is enabled
+                if save_exec_details:
+                    if verbose > 1 or debug:
+                        print(f"[DEBUG] RA_SQL: Saving exec details for sample {item.get('question_id')}: exec_spider={exec_accuracy}, exec_bird={exec_bird}, exec_spider_official={exec_spider_official}")
+                    if exec_accuracy is not None:
+                        result_entry["exec_spider"] = exec_accuracy
+                        result_entry["exec_spider_result"] = "yes" if exec_accuracy == 1 else "no"
+                    if exec_bird is not None:
+                        result_entry["exec_bird"] = exec_bird
+                        result_entry["exec_bird_result"] = "yes" if exec_bird == 1 else "no"
+                    if exec_spider_official is not None:
+                        result_entry["exec_spider_official"] = exec_spider_official
+                        result_entry["exec_spider_official_result"] = "yes" if exec_spider_official == 1 else "no"
+                    # Save actual execution results
+                    if pred_exec_results is not None:
+                        result_entry["predicted_execution_results"] = pred_exec_results
+                    if gold_exec_results is not None:
+                        result_entry["gold_execution_results"] = gold_exec_results
             else:  # SQL
                 result_entry["ground_truth_sql"] = gold_sql
                 result_entry["predicted_sql"] = pred_sql
                 if exec_accuracy is not None:
                     result_entry["exec_accuracy"] = exec_accuracy
+                # Save detailed execution results if flag is enabled
+                if save_exec_details:
+                    if exec_accuracy is not None:
+                        result_entry["exec_spider"] = exec_accuracy
+                        result_entry["exec_spider_result"] = "yes" if exec_accuracy == 1 else "no"
+                    if exec_bird is not None:
+                        result_entry["exec_bird"] = exec_bird
+                        result_entry["exec_bird_result"] = "yes" if exec_bird == 1 else "no"
+                    if exec_spider_official is not None:
+                        result_entry["exec_spider_official"] = exec_spider_official
+                        result_entry["exec_spider_official_result"] = "yes" if exec_spider_official == 1 else "no"
+                    # Save actual execution results
+                    if pred_exec_results is not None:
+                        result_entry["predicted_execution_results"] = pred_exec_results
+                    if gold_exec_results is not None:
+                        result_entry["gold_execution_results"] = gold_exec_results
 
             result_entry["model_output_raw"] = pred_text
-            
+
             # Add database info if available
             if "db_id" in item:
                 result_entry["db_id"] = item["db_id"]
-            
+
             results["detailed_results"].append(result_entry)
-            
+
             # Write to detailed log file if specified
             if detailed_log_file:
                 detailed_log_file.write(f"{'='*100}\n")
@@ -1017,8 +1439,9 @@ class RelationalAlgebraVLLMEvaluator:
                         detailed_log_file.write(f"MODEL OUTPUT (PARSED): Failed to parse JSON\n")
                 elif task_type == 'ra_sql':
                     # Write both RA and SQL ground truth and predictions
-                    detailed_log_file.write(f"GROUND TRUTH (RA):\n{json.dumps(gold_ra, indent=2)}\n")
-                    detailed_log_file.write(f"{'-'*50}\n")
+                    if gold_ra is not None:
+                        detailed_log_file.write(f"GROUND TRUTH (RA):\n{json.dumps(gold_ra, indent=2)}\n")
+                        detailed_log_file.write(f"{'-'*50}\n")
                     detailed_log_file.write(f"GROUND TRUTH (SQL):\n{gold_sql}\n")
                     detailed_log_file.write(f"{'-'*50}\n")
                     detailed_log_file.write(f"MODEL OUTPUT (RAW):\n{pred_text}\n")
@@ -1058,7 +1481,7 @@ class RelationalAlgebraVLLMEvaluator:
                 detailed_log_file.write(f"Generation Time: {gen_time:.3f}s\n")
                 detailed_log_file.write(f"\n")
                 detailed_log_file.flush()  # Flush after each sample for real-time monitoring
-            
+
             # Print verbose output
             if verbose:
                 # Determine if we should print this sample
@@ -1086,12 +1509,13 @@ class RelationalAlgebraVLLMEvaluator:
                     if task_type == 'ra':
                         print(f"  {gold_ra_str}")
                     elif task_type == 'ra_sql':
-                        print(f"  RA: {json.dumps(gold_ra, indent=2)}")
+                        if gold_ra is not None:
+                            print(f"  RA: {json.dumps(gold_ra, indent=2)}")
                         print(f"  SQL: {gold_sql}")
                     else:  # SQL
                         print(f"  {gold_sql}")
                     print(f"-" * 40)
-                    
+
                     # Show model output
                     print(f"Model Output (Raw):")
                     if len(pred_text) > 500:
@@ -1100,7 +1524,7 @@ class RelationalAlgebraVLLMEvaluator:
                     else:
                         print(f"  {pred_text}")
                     print(f"-" * 40)
-                    
+
                     # Show parsed output
                     if task_type == 'ra':
                         if pred_ra is not None:
@@ -1128,7 +1552,7 @@ class RelationalAlgebraVLLMEvaluator:
                         else:
                             print(f"Predicted SQL: Failed to parse SQL")
                     print(f"-" * 40)
-                    
+
                     # Show result
                     print(f"Result: {'✓ CORRECT' if is_correct else '✗ INCORRECT'}")
                     if error_message:
@@ -1140,7 +1564,7 @@ class RelationalAlgebraVLLMEvaluator:
             with open(log_ra_pair_path, 'w', encoding='utf-8') as f:
                 json.dump(log_json, f, indent=2)
             print(f"Saved RA pairs log to: {log_ra_pair_path}")
-        
+
         # Calculate final metrics
         results["overall_metrics"]["accuracy"] = (
             results["overall_metrics"]["correct"] / results["overall_metrics"]["total"]
@@ -1161,9 +1585,19 @@ class RelationalAlgebraVLLMEvaluator:
         results["overall_metrics"]["total_generation_time"] = total_gen_time
 
         # Calculate SQL-specific metrics if applicable
-        if task_type in ['sql', 'ra_sql']:
+        if task_type in ['sql', 'ra_sql', 'cot']:
             results["overall_metrics"]["exec_accuracy"] = (
                 results["overall_metrics"]["exec_correct"] / results["overall_metrics"]["total"]
+                if results["overall_metrics"]["total"] > 0 else 0.0
+            )
+            # Calculate BIRD-style metrics
+            results["overall_metrics"]["exec_bird_accuracy"] = (
+                results["overall_metrics"]["exec_bird_correct"] / results["overall_metrics"]["total"]
+                if results["overall_metrics"]["total"] > 0 else 0.0
+            )
+            # Calculate Official Spider metrics
+            results["overall_metrics"]["exec_spider_official_accuracy"] = (
+                results["overall_metrics"]["exec_spider_official_correct"] / results["overall_metrics"]["total"]
                 if results["overall_metrics"]["total"] > 0 else 0.0
             )
 
@@ -1184,6 +1618,14 @@ class RelationalAlgebraVLLMEvaluator:
             del results['overall_metrics']['sql_score']
             del results['overall_metrics']['ra_component_recall_score']
             del results['overall_metrics']['sql_component_recall_score']
+
+        # Calculate Spider2-specific accuracy
+        if dataset_name == 'spider2' and 'spider2_correct' in results['overall_metrics']:
+            total = results["overall_metrics"]["total"]
+            if total > 0:
+                results["overall_metrics"]["spider2_accuracy"] = (
+                    results["overall_metrics"]["spider2_correct"] / total
+                )
 
         del results['overall_metrics']['score']
         del results['overall_metrics']['component_recall_score']
@@ -1206,12 +1648,12 @@ class RelationalAlgebraVLLMEvaluator:
                 detailed_log_file.write(f"Throughput: {throughput:.2f} samples/second\n")
             detailed_log_file.close()
             print(f"\nDetailed log saved to: {detailed_log_path}")
-        
+
         return results
-    
+
     def save_results(self, results: Dict[str, Any], output_path: str, save_errors_separately: bool = False):
         """Save evaluation results to JSON file.
-        
+
         Args:
             results: Evaluation results dictionary
             output_path: Path to save main results
@@ -1220,7 +1662,7 @@ class RelationalAlgebraVLLMEvaluator:
         with open(output_path, 'w') as f:
             json.dump(results, f, indent=2)
         print(f"Results saved to {output_path}")
-        
+
         # Save errors separately if requested
         if save_errors_separately:
             errors = [r for r in results["detailed_results"] if not r["is_correct"]]
@@ -1239,7 +1681,7 @@ class RelationalAlgebraVLLMEvaluator:
                 with open(error_path, 'w') as f:
                     json.dump(error_summary, f, indent=2)
                 print(f"Error analysis saved to {error_path}")
-    
+
     def print_summary(self, results: Dict[str, Any], show_sample_errors: int = 5):
         """Print evaluation summary.
 
@@ -1251,7 +1693,7 @@ class RelationalAlgebraVLLMEvaluator:
         task_type = results["metadata"].get("task_type", "ra")
 
         print("\n" + "="*80)
-        print(f"EVALUATION SUMMARY (vLLM) - {task_type.upper()} Task")
+        print(f"EVALUATION SUMMARY (vLLM, Chat-Aligned) - {task_type.upper()} Task")
         print("="*80)
         print(f"Total Samples: {metrics['total']}")
 
@@ -1273,16 +1715,55 @@ class RelationalAlgebraVLLMEvaluator:
             print(f"  Both Accuracy: {metrics['both_accuracy']*100:.2f}%")
 
             if 'exec_accuracy' in metrics:
-                print(f"  Execution Accuracy: {metrics['exec_accuracy']*100:.2f}%")
-                print(f"  Execution Correct: {metrics['exec_correct']}")
+                print(f"\n  Execution Metrics:")
+                print(f"    Spider res_map:         {metrics['exec_accuracy']*100:.2f}% ({metrics['exec_correct']}/{metrics['total']})")
+                if 'exec_bird_accuracy' in metrics:
+                    print(f"    BIRD-style (official):  {metrics['exec_bird_accuracy']*100:.2f}% ({metrics['exec_bird_correct']}/{metrics['total']})")
+                if 'exec_spider_official_accuracy' in metrics:
+                    print(f"    Spider Official:        {metrics['exec_spider_official_accuracy']*100:.2f}% ({metrics['exec_spider_official_correct']}/{metrics['total']})")
+                if 'exec_bird_accuracy' in metrics and 'exec_accuracy' in metrics:
+                    diff = (metrics['exec_bird_accuracy'] - metrics['exec_accuracy']) * 100
+                    if diff > 0:
+                        print(f"    BIRD vs res_map:        +{diff:.2f}% (BIRD more lenient)")
+                    elif diff < 0:
+                        print(f"    BIRD vs res_map:        {diff:.2f}% (res_map more lenient)")
+                if 'exec_spider_official_accuracy' in metrics and 'exec_accuracy' in metrics:
+                    diff2 = (metrics['exec_spider_official_accuracy'] - metrics['exec_accuracy']) * 100
+                    if diff2 > 0:
+                        print(f"    Official vs res_map:    +{diff2:.2f}% (Official more lenient)")
+                    elif diff2 < 0:
+                        print(f"    Official vs res_map:    {diff2:.2f}% (res_map more lenient)")
         else:
             print(f"Correct: {metrics['correct']}")
             print(f"Incorrect: {metrics['total'] - metrics['correct']}")
             print(f"Accuracy: {metrics['accuracy']*100:.2f}%")
 
-            if task_type == 'sql' and 'exec_accuracy' in metrics:
-                print(f"Execution Accuracy: {metrics['exec_accuracy']*100:.2f}%")
-                print(f"Execution Correct: {metrics['exec_correct']}")
+            if task_type in ['sql', 'cot'] and 'exec_accuracy' in metrics:
+                print(f"\nExecution Metrics:")
+                print(f"  Spider res_map:         {metrics['exec_accuracy']*100:.2f}% ({metrics['exec_correct']}/{metrics['total']})")
+                if 'exec_bird_accuracy' in metrics:
+                    print(f"  BIRD-style (official):  {metrics['exec_bird_accuracy']*100:.2f}% ({metrics['exec_bird_correct']}/{metrics['total']})")
+                if 'exec_spider_official_accuracy' in metrics:
+                    print(f"  Spider Official:        {metrics['exec_spider_official_accuracy']*100:.2f}% ({metrics['exec_spider_official_correct']}/{metrics['total']})")
+                if 'exec_bird_accuracy' in metrics and 'exec_accuracy' in metrics:
+                    diff = (metrics['exec_bird_accuracy'] - metrics['exec_accuracy']) * 100
+                    if diff > 0:
+                        print(f"  BIRD vs res_map:        +{diff:.2f}% (BIRD more lenient)")
+                    elif diff < 0:
+                        print(f"  BIRD vs res_map:        {diff:.2f}% (res_map more lenient)")
+                    else:
+                        print(f"  BIRD vs res_map:        0.00% (identical)")
+                if 'exec_spider_official_accuracy' in metrics and 'exec_accuracy' in metrics:
+                    diff2 = (metrics['exec_spider_official_accuracy'] - metrics['exec_accuracy']) * 100
+                    if diff2 > 0:
+                        print(f"  Official vs res_map:    +{diff2:.2f}% (Official more lenient)")
+                    elif diff2 < 0:
+                        print(f"  Official vs res_map:    {diff2:.2f}% (res_map more lenient)")
+                    else:
+                        print(f"  Official vs res_map:    0.00% (identical)")
+                    if metrics.get('exec_methods_agree'):
+                        agree_rate = metrics['exec_methods_agree'] / metrics['total'] * 100
+                        print(f"  Methods agree:          {agree_rate:.2f}% ({metrics['exec_methods_agree']}/{metrics['total']})")
 
             print(f"Avg Score: {metrics['avg_score']:.4f}")
             print(f"Avg Component Recall Score: {metrics['avg_component_recall_score']:.4f}")
@@ -1290,12 +1771,12 @@ class RelationalAlgebraVLLMEvaluator:
         print(f"Parse Errors: {metrics['parse_errors']} ({metrics['parse_errors']/metrics['total']*100:.1f}%)")
         print(f"Average Generation Time: {metrics['avg_generation_time']:.3f}s")
         print(f"Total Generation Time: {metrics['total_generation_time']:.1f}s")
-        
+
         # Calculate throughput
         if metrics['total_generation_time'] > 0:
             throughput = metrics['total'] / metrics['total_generation_time']
             print(f"Throughput: {throughput:.2f} samples/second")
-        
+
         # Analyze errors
         if results["detailed_results"]:
             errors = [r for r in results["detailed_results"] if not r["is_correct"]]
@@ -1306,7 +1787,7 @@ class RelationalAlgebraVLLMEvaluator:
                 print(f"Total Errors: {len(errors)}")
                 print(f"Parse Errors: {sum(1 for e in errors if e['parse_error'])}")
                 print(f"Logic Errors: {sum(1 for e in errors if not e['parse_error'])}")
-                
+
                 # Show sample errors if requested
                 if show_sample_errors > 0 and errors:
                     print(f"\nSample Errors (showing first {min(show_sample_errors, len(errors))}):")
@@ -1321,24 +1802,24 @@ class RelationalAlgebraVLLMEvaluator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Evaluate Relational Algebra or SQL SFT Model with vLLM",
+        description="Evaluate Chat-Aligned Relational Algebra or SQL SFT Model with vLLM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # RA evaluation
-  %(prog)s --model_checkpoint_path ./ra_model --input_file test_ra.json \\
+  %(prog)s --model_checkpoint_path ./ra_chat_model --input_file test_ra.json \\
            --database_path ./db --dataset_name spider \\
            --table_value_cache_path ./cache --table_info_cache_path ./info \\
            --task_type ra
 
   # SQL evaluation with Spider metrics (with foreign keys)
-  %(prog)s --model_checkpoint_path ./sql_model --input_file test_sql.json \\
+  %(prog)s --model_checkpoint_path ./sql_chat_model --input_file test_sql.json \\
            --database_path ./db --dataset_name spider \\
            --table_value_cache_path ./cache --table_info_cache_path ./info \\
            --table_json_path ./tables.json --task_type sql
 
   # SQL evaluation for BIRD (no tables.json needed)
-  %(prog)s --model_checkpoint_path ./sql_model --input_file bird_sql.json \\
+  %(prog)s --model_checkpoint_path ./sql_chat_model --input_file bird_sql.json \\
            --database_path ./bird_db --dataset_name bird \\
            --table_value_cache_path ./cache --table_info_cache_path ./info \\
            --task_type sql
@@ -1357,17 +1838,19 @@ Examples:
 
   # For checkpoint without config.json
   %(prog)s --model_checkpoint_path ./checkpoint-1251 \\
-           --tokenizer_name Qwen/Qwen2.5-0.5B \\
+           --tokenizer_name Qwen/Qwen2.5-0.5B-Instruct \\
            --temp_dir_base ./vllm_temp ...
         """
     )
-    
+
     # Model arguments
     parser.add_argument("--model_checkpoint_path", type=str, required=True,
                         help="Path to model checkpoint directory")
     parser.add_argument("--tokenizer_name", type=str, default=None,
-                        help="Tokenizer/base model name if checkpoint lacks config (e.g., Qwen/Qwen2.5-0.5B)")
-    
+                        help="Tokenizer/base model name if checkpoint lacks config (e.g., Qwen/Qwen2.5-0.5B-Instruct)")
+    parser.add_argument("--system_message", type=str, default=DEFAULT_SYSTEM_MESSAGE,
+                        help="System message for chat template")
+
     # vLLM arguments
     parser.add_argument("--tensor_parallel_size", type=int, default=1,
                         help="Number of GPUs for tensor parallelism")
@@ -1377,7 +1860,7 @@ Examples:
                         help="Maximum model context length")
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="Batch size for vLLM inference")
-    
+
     # Dataset arguments
     parser.add_argument("--database_path", type=str, required=True,
                         help="Path to database")
@@ -1389,7 +1872,7 @@ Examples:
                         help="Path to table info cache")
     parser.add_argument("--input_file", type=str, required=True,
                         help="Path to evaluation dataset JSON file")
-    
+
     # Generation arguments
     parser.add_argument("--max_new_tokens", type=int, default=4096,
                         help="Maximum new tokens to generate")
@@ -1397,11 +1880,11 @@ Examples:
                         help="Generation temperature (0 for greedy)")
     parser.add_argument("--top_p", type=float, default=1.0,
                         help="Top-p for nucleus sampling")
-    
+
     # Evaluation arguments
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum number of samples to evaluate")
-    parser.add_argument("--output_log", type=str, default="evaluation_results_vllm.json",
+    parser.add_argument("--output_log", type=str, default="evaluation_results_vllm_chat.json",
                         help="Path to save detailed evaluation results")
     parser.add_argument("--verbose", type=int, default=0, choices=[0, 1, 2],
                         help="Verbosity level: 0=summary only, 1=show first 10 and errors, 2=show all")
@@ -1409,7 +1892,11 @@ Examples:
                         help="Path to save detailed text log with all outputs")
     parser.add_argument("--save_errors", action="store_true",
                         help="Save errors to a separate JSON file for analysis")
-    
+    parser.add_argument("--exec_timeout", type=int, default=None,
+                        help="SQL execution timeout in seconds (default: None = no timeout). Set to 60-120 for complex queries that may hang.")
+    parser.add_argument("--save_exec_details", action="store_true",
+                        help="Save per-sample execution details (both Spider and BIRD metrics) for gap analysis")
+
     # Other arguments
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed")
@@ -1424,19 +1911,26 @@ Examples:
                         help='Path to log relational algebra and parse analysis pairs (if needed)')
 
     # SQL evaluation specific arguments
-    parser.add_argument('--task_type', type=str, default='ra', choices=['ra', 'sql', 'ra_sql'],
-                        help='Task type: "ra" for relational algebra, "sql" for SQL evaluation, "ra_sql" for combined RA+SQL evaluation')
+    parser.add_argument('--task_type', type=str, default='ra', choices=['ra', 'sql', 'ra_sql', 'cot'],
+                        help='Task type: "ra" for relational algebra, "sql" for SQL evaluation, "ra_sql" for combined RA+SQL evaluation, "cot" for chain-of-thought SQL evaluation')
+    parser.add_argument('--skip_ra_eval', action='store_true',
+                        help='Skip RA evaluation in ra_sql mode (only evaluate SQL). Has no effect for "ra" or "sql" task types. Default: False (backward compatible)')
     parser.add_argument('--table_json_path', type=str, default=None,
                         help='Path to tables.json for SQL evaluation (optional, improves Spider evaluation accuracy)')
+    # Spider2-specific arguments
+    parser.add_argument('--spider2_gold_result_dir', type=str, default=None,
+                        help='Path to Spider2 gold execution results directory (CSV files)')
+    parser.add_argument('--spider2_eval_standard', type=str, default=None,
+                        help='Path to Spider2 eval_standard.jsonl file')
 
     args = parser.parse_args()
 
-    # Warn if table_json_path not provided for SQL or RA+SQL evaluation
-    if args.task_type in ['sql', 'ra_sql'] and not args.table_json_path:
+    # Warn if table_json_path not provided for SQL, RA+SQL, or CoT evaluation
+    if args.task_type in ['sql', 'ra_sql', 'cot'] and not args.table_json_path:
         print(f"Warning: --table_json_path not provided for {args.task_type.upper()} evaluation.")
         print("         This is fine for BIRD dataset, but may reduce accuracy for Spider.")
         print("         Foreign key relationships will not be considered in evaluation.")
-    
+
     # Configure temp directory for vLLM before any imports/initialization
     if args.temp_dir_base:
         os.makedirs(args.temp_dir_base, exist_ok=True)
@@ -1451,24 +1945,28 @@ Examples:
         args.output_log = args.output_log.replace('evaluation_results', 'ra_sql_evaluation_results')
         if args.detailed_log:
             args.detailed_log = args.detailed_log.replace('.txt', '_ra_sql.txt')
+    elif args.task_type == 'cot':
+        args.output_log = args.output_log.replace('evaluation_results', 'cot_evaluation_results')
+        if args.detailed_log:
+            args.detailed_log = args.detailed_log.replace('.txt', '_cot.txt')
 
     if args.cot:
         args.output_log = args.output_log.replace('.json', '_cot.json')
         args.detailed_log = None if args.detailed_log is None else args.detailed_log.replace('.txt', '_cot.txt')
-    
+
     # Set seed
     torch.manual_seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
-    
+
     # Load evaluation dataset
     print(f"Loading evaluation dataset from {args.input_file}...")
     with open(args.input_file, 'r') as f:
         eval_dataset = json.load(f)
     print(f"Loaded {len(eval_dataset)} samples")
-    
+
     # Initialize evaluator
-    evaluator = RelationalAlgebraVLLMEvaluator(
+    evaluator = ChatAlignedRelationalAlgebraVLLMEvaluator(
         model_checkpoint_path=args.model_checkpoint_path,
         tokenizer_name=args.tokenizer_name,
         tensor_parallel_size=args.tensor_parallel_size,
@@ -1479,16 +1977,19 @@ Examples:
         top_p=args.top_p,
         batch_size=args.batch_size,
         temp_dir_base=args.temp_dir_base,
+        system_message=args.system_message,
     )
-    
+
     # Run evaluation
-    print(f"\nStarting {args.task_type.upper()} evaluation with vLLM...")
+    print(f"\nStarting {args.task_type.upper()} evaluation with vLLM (chat-aligned)...")
     print(f"Verbosity level: {args.verbose} (0=summary, 1=first 10 + errors, 2=all)")
     if args.detailed_log:
         print(f"Detailed log will be saved to: {args.detailed_log}")
-    if args.task_type == 'sql':
+    if args.task_type in ['sql', 'cot']:
         print(f"Using tables.json from: {args.table_json_path}")
-    
+    if args.task_type == 'cot':
+        print(f"Note: CoT models output reasoning + SQL. SQL will be extracted for evaluation.")
+
     results = evaluator.evaluate_dataset(
         dataset=eval_dataset,
         database_path=args.database_path,
@@ -1505,24 +2006,29 @@ Examples:
         debug=args.debug,
         log_ra_pair_path=args.log_ra_pair_path,
         task_type=args.task_type,
-        table_json_path=args.table_json_path
+        table_json_path=args.table_json_path,
+        save_exec_details=args.save_exec_details,
+        exec_timeout=args.exec_timeout,
+        skip_ra_eval=args.skip_ra_eval,
+        spider2_gold_result_dir=args.spider2_gold_result_dir,
+        spider2_eval_standard=args.spider2_eval_standard
     )
-    
+
     # Save results
     evaluator.save_results(results, args.output_log, save_errors_separately=args.save_errors)
-    
+
     # Print summary
     evaluator.print_summary(results, show_sample_errors=5 if args.verbose > 0 else 0)
-    
+
     # Create a simplified CSV report if needed
     csv_path = args.output_log.replace('.json', '_summary.csv')
     print(f"\nCreating summary CSV at {csv_path}...")
-    
+
     import csv
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow([
-            'Index', 'Question_ID', 'DB_ID', 'Question', 
+            'Index', 'Question_ID', 'DB_ID', 'Question',
             'Is_Correct', 'Parse_Error', 'Generation_Time',
             'Ground_Truth_Summary', 'Model_Output_Summary'
         ])
@@ -1549,7 +2055,7 @@ Examples:
                 model_summary = str(r['predicted_sql']).replace('\n', ' ')[:200] if r['predicted_sql'] else 'Parse Failed'
             else:
                 model_summary = 'N/A'
-            
+
             writer.writerow([
                 r['index'],
                 r['question_id'],
@@ -1561,10 +2067,10 @@ Examples:
                 gt_summary,
                 model_summary
             ])
-    
+
     print(f"Summary CSV saved to {csv_path}")
     print("\nEvaluation complete!")
-    
+
     # Clean up temp directory if created
     if hasattr(evaluator, 'temp_dir') and evaluator.temp_dir:
         print(f"Cleaning up temporary directory: {evaluator.temp_dir}")

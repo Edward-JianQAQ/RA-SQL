@@ -165,6 +165,90 @@ For Spider evaluation with foreign key support, add `--table_json_path ../data/s
 - Component F1 scores (select, where, group, order, keywords)
 - RA tree scores (for `ra` and `ra_sql` tasks)
 
+<details>
+<summary><b>Reproducing All Paper Experiments (Section 7)</b></summary>
+
+Scripts for all experiments reported in the paper are in `scripts/experiments/`. Each script includes comments mapping to the corresponding paper section.
+
+### Data requirements
+
+All RA-annotated evaluation data is included in `data/`. You additionally need:
+
+| Data | Required for | How to obtain |
+|------|-------------|---------------|
+| Spider databases | All Spider evaluations | [Spider](https://yale-lily.github.io/spider) → `data/spider/database/` and `data/spider/test_database/` |
+| BIRD databases | BIRD evaluations | [BIRD](https://bird-bench.github.io/) → `data/bird/{train,dev}/` |
+| Spider-DK databases | Section 7.3 | [Spider-DK](https://github.com/ygan/Spider-DK) → `data/spider_dk/database/` |
+| EHRSQL databases | Section 7.3 | [PhysioNet](https://physionet.org/) (MIMIC-III, eICU) → `data/ehrsql/database/` |
+| ScienceBenchmark databases | Section 7.3 | [ScienceBenchmark](https://github.com/anon/sciencebenchmark) → `data/sciencebenchmark/databases/` |
+| SynSQL cached dataset | Sections 7.2, 7.5 | Build with `scripts/build_synsql_cache.sh` (see below) |
+
+### Building the SynSQL cached dataset
+
+The SynSQL dataset (2.5M examples) is slow to preprocess at training time because each example requires schema lookup, value retrieval, prompt formatting, RA serialization, and tokenization. We pre-build the dataset once and save it as a pickle file so that subsequent training runs load in seconds:
+
+```bash
+# 1. Download SynSQL-2.5M from OmniSQL, run RA generation, create 10% subset
+# 2. Build the cache (runs preprocessing once, ~1-2 hours)
+bash scripts/build_synsql_cache.sh
+
+# 3. Training loads the cache instantly
+python training/train.py --cached_dataset_path data/synsql/cached_datasets/cached_dataset.pkl ...
+```
+
+See `scripts/build_synsql_cache.sh` for full instructions on preparing the SynSQL data from scratch.
+
+### Section 7.1 — Main results (RA-SQL vs direct SQL)
+
+Train on Spider or BIRD with `scripts/run_train.sh`, then evaluate with `scripts/run_eval.sh`. Repeat with `--task_type sql` (no RA) for the baseline.
+
+### Section 7.2 — Comparison to state-of-the-art
+
+Two-stage training: SynSQL pretraining followed by benchmark finetuning.
+
+```bash
+# Stage 1: Pretrain on SynSQL 10%
+bash scripts/experiments/train_synsql_pretrain.sh
+
+# Stage 2: Finetune on Spider (or BIRD)
+bash scripts/experiments/train_synsql_then_finetune.sh
+```
+
+### Section 7.3 — Extended benchmark evaluation
+
+Evaluate on Spider variants (Spider-Syn, Spider-Realistic, Spider-DK), EHRSQL, and ScienceBenchmark:
+
+```bash
+bash scripts/experiments/eval_extended_benchmarks.sh
+```
+
+Spider-Syn and Spider-Realistic reuse Spider's database directory and schema caches. Spider-DK, EHRSQL, and ScienceBenchmark require their own database downloads (see table above).
+
+**Evaluation metrics by benchmark:**
+- Spider variants: execution accuracy + exact match + component F1 (with foreign key support)
+- BIRD: execution accuracy only (BIRD SQL syntax does not support AST-based exact match parsing)
+- EHRSQL, ScienceBenchmark: execution accuracy only
+
+### Section 7.4 — Out-of-distribution generalization
+
+Train on one benchmark, evaluate on another without target-domain finetuning:
+
+```bash
+bash scripts/experiments/eval_ood.sh
+```
+
+### Section 7.5 — CoT ablation (RA-SQL vs LLM-generated CoT vs no CoT)
+
+Train SQL-only baseline (no RA CoT) on the same SynSQL data:
+
+```bash
+bash scripts/experiments/train_cot_ablation.sh
+```
+
+Then evaluate both variants with the same eval commands, comparing `--task_type ra_sql` (RA-SQL) vs `--task_type sql` (SQL-only).
+
+</details>
+
 ## Acknowledgments
 
 - SQL evaluation code adapted from the [Spider benchmark](https://github.com/taoyds/spider) and [OmniSQL](https://github.com/RUCKBReasoning/OmniSQL).

@@ -1,0 +1,223 @@
+{
+    "cordis_temporary": {
+        "countries.unics_id": [
+            1,
+            2
+        ],
+        "countries.country_name": [
+            "Afghanistan",
+            "Albania"
+        ],
+        "countries.country_code2": [
+            "AD",
+            "AE"
+        ],
+        "countries.country_code3": [
+            "ABW",
+            "AFG"
+        ],
+        "institutions.unics_id": [
+            3923,
+            3926
+        ],
+        "institutions.country_id": [
+            111,
+            234
+        ],
+        "institutions.institutions_name": [
+            "\"\"\"Matenadaran\"\" M.Mashtots Institute of",
+            "\"\"\"security made in L\u00ebtzebuerg\"\" (SMILE)"
+        ],
+        "institutions.geocode_regions_3": [
+            "AT126",
+            "AT130"
+        ],
+        "institutions.db_pedia_url": [
+            "http://dbpedia.org/page/%C3%89cole_Centr",
+            "http://dbpedia.org/page/%C3%89cole_Natio"
+        ],
+        "institutions.wikidata_url": [
+            "http://www.wikidata.org/wiki/Q10002",
+            "http://www.wikidata.org/wiki/Q100324125"
+        ],
+        "institutions.grid_id": [
+            "\ngrid.433939.7",
+            "grid.1001.0"
+        ],
+        "institutions.acronym": [
+            "ACA",
+            "ACCIO"
+        ],
+        "institutions.short_name": [
+            "AMU",
+            "Barcelona Digital Centre Tecnol\u00f2gic"
+        ],
+        "institutions.website": [
+            "http://uard.bg/",
+            "http://www.aslto3.piemonte.it/"
+        ],
+        "institutions.document_vectors": [
+            "'aldo':6 'bari':5 'deg':2 'di':4 'moro':",
+            "'bari':3 'di':2 'politecnico':1"
+        ],
+        "people.unics_id": [
+            1209080,
+            1209081
+        ],
+        "people.full_name": [
+            "(Margrit) Insa Nolte",
+            "Aart Cornelis Liefbroer"
+        ],
+        "programmes.code": [
+            "169-SP4",
+            "AAT"
+        ],
+        "programmes.rcn": [
+            "10052",
+            "10053"
+        ],
+        "programmes.title": [
+            " Mainstreaming SME support, especially t",
+            "\"EU cultural heritage identity card\" "
+        ],
+        "programmes.short_name": [
+            "A green economy and society through eco-",
+            "A single, smart European electricity gri"
+        ],
+        "programmes.parent": [
+            "169-SP4",
+            "AAT"
+        ],
+        "projects.unics_id": [
+            147137,
+            165921
+        ],
+        "projects.acronym": [
+            "\"\"\"ChIP Seq RA CD\"\"\"",
+            "\"\"\"PICTURING GENDER\"\"\""
+        ],
+        "projects.title": [
+            "\"\"\"2nd Generation Active Wing\u201c \u2013  Active",
+            "\"\"\"Chips on the go\"\": towards truly wear"
+        ],
+        "projects.ec_call": [
+            "ARTEMIS-2008-1",
+            "ARTEMIS-2009-1"
+        ],
+        "projects.ec_fund_scheme": [
+            "BBI-CSA",
+            "BBI-IA-DEMO"
+        ],
+        "projects.cordis_ref": [
+            "100000",
+            "100001"
+        ],
+        "projects.ec_ref": [
+            "100016",
+            "100017"
+        ],
+        "projects.start_date": [
+            "2013-10-01",
+            "2015-10-01"
+        ],
+        "projects.end_date": [
+            "2016-09-30",
+            "2016-05-04"
+        ],
+        "projects.start_year": [
+            2013,
+            2015
+        ],
+        "projects.end_year": [
+            2016,
+            2017
+        ],
+        "projects.total_cost": [
+            4443408.0,
+            15000.0
+        ],
+        "projects.ec_max_contribution": [
+            3423572.0,
+            15000.0
+        ],
+        "projects.framework_program": [
+            "FP7",
+            "H2020"
+        ],
+        "projects.objective": [
+            "\n\"Earthquakes regularly occur throughout",
+            "\n\"To unlock the true potential of the UA"
+        ],
+        "projects.principal_investigator": [
+            1214228,
+            1212155
+        ],
+        "topics.code": [
+            "AAT-2007-1.1-01",
+            "AAT-2007-1.1-02"
+        ],
+        "topics.rcn": [
+            "10055",
+            "10056"
+        ],
+        "topics.title": [
+            "\nKET Biotechnology foresight identifying",
+            " Biomarkers for nutrition and health "
+        ]
+    },
+    "oncomx_v1_0_25_small": {
+        "biomarker.id": [
+            "EDRN00001",
+            "EDRN00002"
+        ],
+        "biomarker.gene_symbol": [
+            "AATK",
+            "ABCA2"
+        ],
+        "biomarker.biomarker_description": [
+            "11 kDa protein that is a precursor to th",
+            "2&apos;-5&apos;-oligoadenylate synthetas"
+        ],
+        "biomarker.biomarker_id": [
+            "1027",
+            "1035"
+        ],
+        "biomarker.test_is_a_panel": [
+            0,
+            1
+        ],
+        "disease.id": [
+            0,
+            119
+        ],
+        "disease.name": [
+            "adrenal gland cancer",
+            "bile duct cancer"
+        ],
+        "species.speciesid": [
+            9606,
+            10090
+        ],
+        "species.genus": [
+            "Homo",
+            "Mus"
+        ],
+        "species.species": [
+            "musculus",
+            "sapiens"
+        ],
+        "species.speciescommonname": [
+            "human",
+            "mouse"
+        ],
+        "stage.id": [
+            "HsapDv:0000084",
+            "HsapDv:0000085"
+        ],
+        "stage.name": [
+            "1 week (mouse)",
+            "10 weeks (mouse)"
+        ]
+    },
+    "skyserver_dr16_2020_11_30": {}
+}
