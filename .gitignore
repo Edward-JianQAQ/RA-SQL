@@ -1,0 +1,35 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Java build artifacts
+ra_generation/calcite-plan/target/
+
+# Database files 
+data/spider/database/
+data/spider/test_database/
+data/bird/train/train_databases/
+data/bird/dev/dev_databases/
+data/spider_dk/database/
+data/ehrsql/database/
+data/sciencebenchmark/databases/
+data/synsql/
+
+# Training outputs
+training/ra_sql_ckpts/
+training/wandb/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
