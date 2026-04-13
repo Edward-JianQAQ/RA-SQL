@@ -146,7 +146,6 @@ from eval_spider import (
 from eval_dual_metrics import evaluate_sql_dual_metrics, format_dual_metrics_summary
 from eval_bird_style import eval_exec_match_bird_style_simple, eval_exec_match_bird_style_with_results
 from eval_spider_official import eval_exec_match_official_simple
-from eval_spider2 import evaluate_single_spider2, load_jsonl_to_dict as load_spider2_eval_standard
 
 # Set environment variables for vLLM to avoid using /tmp
 # This should be done before importing vLLM
@@ -526,8 +525,6 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
         save_exec_details: bool = False,
         exec_timeout: Optional[int] = None,
         skip_ra_eval: bool = False,
-        spider2_gold_result_dir: Optional[str] = None,
-        spider2_eval_standard: Optional[str] = None
     ) -> Dict[str, Any]:
         """Evaluate model on dataset with detailed logging using vLLM batching.
 
@@ -568,15 +565,6 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
                 kmaps = None
 
         # Load Spider2 evaluation standard if provided
-        spider2_eval_standard_dict = None
-        if dataset_name == 'spider2' and spider2_eval_standard and os.path.exists(spider2_eval_standard):
-            print(f"Loading Spider2 evaluation standard from {spider2_eval_standard}...")
-            try:
-                spider2_eval_standard_dict = load_spider2_eval_standard(spider2_eval_standard)
-                print(f"Loaded {len(spider2_eval_standard_dict)} Spider2 evaluation standards")
-            except Exception as e:
-                print(f"Warning: Could not load Spider2 evaluation standard: {e}")
-                spider2_eval_standard_dict = None
 
         results = {
             "metadata": {
@@ -633,17 +621,6 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
             results["overall_metrics"]["sql_score"] = 0.0
             results["overall_metrics"]["ra_component_recall_score"] = 0.0
             results["overall_metrics"]["sql_component_recall_score"] = 0.0
-
-        # Add Spider2-specific metrics
-        if dataset_name == 'spider2':
-            results["overall_metrics"]["spider2_correct"] = 0
-            results["overall_metrics"]["spider2_accuracy"] = 0.0
-            results["metadata"]["eval_method"] = "spider2"
-            if spider2_eval_standard_dict:
-                results["metadata"]["spider2_eval_standard_loaded"] = True
-            else:
-                results["metadata"]["spider2_eval_standard_loaded"] = False
-                print("Warning: Spider2 evaluation standard not loaded. Using BIRD-style fallback evaluation.")
 
         eval_samples = dataset[:max_samples] if max_samples else dataset
 
@@ -748,17 +725,6 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
             #     continue
             # if idx in [732, 733, 734, 735] and dataset_name == "spider":  # For debugging specific samples
             #     # import pdb; pdb.set_trace()
-            #     print("skipping sample 732, 733, 734, 735")
-            #     continue
-            # if idx in [330,331,352] and dataset_name == "spider-dk-omnisql":  # For debugging specific samples
-            #     print("skipping sample 331 or 353")
-            #     continue
-            # if idx in [53, 54, 55, 114] and dataset_name == "spider2":  # For debugging specific samples 59, 114
-            #     print("skipping sample 331 or 353")
-            #     continue
-            if idx in [114] and dataset_name == "spider2":  # For debugging specific samples 59, 114
-                print("skipping sample 331 or 353")
-                continue
             # Initialize common variables
             is_correct = False
             parse_error = False
@@ -869,46 +835,7 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
                         error_message = "Failed to parse SQL from model output"
                         results["overall_metrics"]["parse_errors"] += 1
                 # Spider2-specific evaluation: compare against gold execution results (CSV files)
-                elif dataset_name == 'spider2' and spider2_eval_standard_dict and spider2_gold_result_dir:
-                    instance_id = item.get('instance_id', '')
-                    eval_std = spider2_eval_standard_dict.get(instance_id, {
-                        'condition_cols': [],
-                        'ignore_order': False
-                    })
 
-                    spider2_result = evaluate_single_spider2(
-                        instance_id=instance_id,
-                        pred_sql=pred_sql,
-                        db_path=database_path,
-                        db_id=db_id,
-                        gold_result_dir=spider2_gold_result_dir,
-                        eval_standard=eval_std,
-                        timeout=exec_timeout or 30
-                    )
-
-                    spider2_score = spider2_result['score']
-                    sql_match = spider2_score == 1
-                    exec_accuracy = spider2_score  # Spider2 uses execution result comparison
-                    exec_bird = spider2_score  # Same result for BIRD-style too
-
-                    if spider2_result.get('error_info'):
-                        error_message = spider2_result['error_info']
-
-                    sql_cont_res = {
-                        'score': float(spider2_score),
-                        'component_recall_score': float(spider2_score)
-                    }
-
-                    if sql_match:
-                        results["overall_metrics"]["sql_correct"] += 1
-                        results["overall_metrics"]["spider2_correct"] += 1
-                    if exec_accuracy == 1:
-                        results["overall_metrics"]["exec_correct"] += 1
-                    if exec_bird == 1:
-                        results["overall_metrics"]["exec_bird_correct"] += 1
-
-                    if verbose > 1 or debug:
-                        print(f"[DEBUG] Spider2 eval for {instance_id}: score={spider2_score}, error={spider2_result.get('error_info')}")
                 else:
                     # Evaluate SQL using Spider evaluation
                     try:
@@ -961,7 +888,7 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
                                 if verbose > 1 or debug:
                                     print(f"[DEBUG] Official Spider execution failed: {official_e}")
                         else:
-                            # Skip official Spider execution for non-Spider datasets (e.g., BIRD, spider2, ehrsql, sciencebenchmark)
+                            # Skip official Spider execution for non-Spider datasets (e.g., BIRD, ehrsql, sciencebenchmark)
                             exec_spider_official = None
 
                         if verbose > 1 or debug:
@@ -1091,7 +1018,7 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
                 if dataset_name.lower() in ['spider', 'spider-dk', 'spider-syn', 'spider-realistic', 'spider-dk-omnisql']:
                     gold_sql = item.get("query", item.get("SQL", ""))
                 else:
-                    # BIRD, spider2, ehrsql, sciencebenchmark use 'SQL' or 'sql'
+                    # BIRD, ehrsql, sciencebenchmark use 'SQL' or 'sql'
                     gold_sql = item.get("SQL", item.get("sql", ""))
                 db_id = item.get("db_id", "")
 
@@ -1108,46 +1035,7 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
                     results["overall_metrics"]["parse_errors"] += 1
                     cont_res = {'score': 0, 'component_recall_score': 0}
                 # Spider2-specific evaluation: compare against gold execution results (CSV files)
-                elif dataset_name == 'spider2' and spider2_eval_standard_dict and spider2_gold_result_dir:
-                    instance_id = item.get('instance_id', '')
-                    eval_std = spider2_eval_standard_dict.get(instance_id, {
-                        'condition_cols': [],
-                        'ignore_order': False
-                    })
 
-                    spider2_result = evaluate_single_spider2(
-                        instance_id=instance_id,
-                        pred_sql=pred_sql,
-                        db_path=database_path,
-                        db_id=db_id,
-                        gold_result_dir=spider2_gold_result_dir,
-                        eval_standard=eval_std,
-                        timeout=exec_timeout or 30
-                    )
-
-                    spider2_score = spider2_result['score']
-                    is_correct = spider2_score == 1
-                    exec_accuracy = spider2_score  # Spider2 uses execution result comparison
-                    exec_bird = spider2_score  # Same result for BIRD-style too
-
-                    if spider2_result.get('error_info'):
-                        error_message = spider2_result['error_info']
-
-                    cont_res = {
-                        'score': float(spider2_score),
-                        'component_recall_score': float(spider2_score)
-                    }
-
-                    if is_correct:
-                        results["overall_metrics"]["correct"] += 1
-                        results["overall_metrics"]["spider2_correct"] += 1
-                    if exec_accuracy == 1:
-                        results["overall_metrics"]["exec_correct"] += 1
-                    if exec_bird == 1:
-                        results["overall_metrics"]["exec_bird_correct"] += 1
-
-                    if verbose > 1 or debug:
-                        print(f"[DEBUG] Spider2 eval for {instance_id}: score={spider2_score}, error={spider2_result.get('error_info')}")
                 else:
                     # Evaluate SQL using Spider evaluation
                     try:
@@ -1619,13 +1507,7 @@ class ChatAlignedRelationalAlgebraVLLMEvaluator:
             del results['overall_metrics']['ra_component_recall_score']
             del results['overall_metrics']['sql_component_recall_score']
 
-        # Calculate Spider2-specific accuracy
-        if dataset_name == 'spider2' and 'spider2_correct' in results['overall_metrics']:
-            total = results["overall_metrics"]["total"]
-            if total > 0:
-                results["overall_metrics"]["spider2_accuracy"] = (
-                    results["overall_metrics"]["spider2_correct"] / total
-                )
+
 
         del results['overall_metrics']['score']
         del results['overall_metrics']['component_recall_score']
@@ -1917,11 +1799,6 @@ Examples:
                         help='Skip RA evaluation in ra_sql mode (only evaluate SQL). Has no effect for "ra" or "sql" task types. Default: False (backward compatible)')
     parser.add_argument('--table_json_path', type=str, default=None,
                         help='Path to tables.json for SQL evaluation (optional, improves Spider evaluation accuracy)')
-    # Spider2-specific arguments
-    parser.add_argument('--spider2_gold_result_dir', type=str, default=None,
-                        help='Path to Spider2 gold execution results directory (CSV files)')
-    parser.add_argument('--spider2_eval_standard', type=str, default=None,
-                        help='Path to Spider2 eval_standard.jsonl file')
 
     args = parser.parse_args()
 
@@ -2010,8 +1887,6 @@ Examples:
         save_exec_details=args.save_exec_details,
         exec_timeout=args.exec_timeout,
         skip_ra_eval=args.skip_ra_eval,
-        spider2_gold_result_dir=args.spider2_gold_result_dir,
-        spider2_eval_standard=args.spider2_eval_standard
     )
 
     # Save results
