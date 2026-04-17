@@ -1,4 +1,4 @@
-# RA-SQL: Relational Algebra as Deterministic Chain-of-Thoughtfor Natural Langauge to SQL
+# RA-SQL: Relational Algebra as Deterministic Chain-of-Thought for Natural Language to SQL
 
 
 RA-SQL compiles gold SQL queries into relational algebra (RA) operator trees via Apache Calcite and uses the serialized trees as structured chain-of-thought (CoT) supervision for training NL2SQL models. A single autoregressive model generates the RA tree in a `<think>` block, then produces the final SQL in an `<answer>` block.
